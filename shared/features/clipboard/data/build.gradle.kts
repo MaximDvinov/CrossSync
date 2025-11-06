@@ -21,6 +21,8 @@ kotlin {
             implementation(libs.kotlinx.datetime)
 
             implementation(projects.shared.features.clipboard.domain)
+
+            implementation(libs.kotlinx.collections.immutable)
         }
 
         androidMain.dependencies {

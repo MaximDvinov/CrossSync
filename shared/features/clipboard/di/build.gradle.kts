@@ -23,6 +23,7 @@ kotlin {
             implementation(libs.koin.core)
 
             implementation(projects.shared.features.clipboard.data)
+            api(projects.shared.features.clipboard.presentation)
             api(projects.shared.features.clipboard.domain)
         }
 

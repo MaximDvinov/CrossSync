@@ -26,11 +26,11 @@ class DesktopClipboardManager() : ClipboardManager {
         println("Clipboard init")
         val flow: MutableStateFlow<CopiedData?> = MutableStateFlow(null)
         coroutineScope.launch {
-            var lastData: CopiedData.Text = getData() as CopiedData.Text
+            var lastData: CopiedData.Text? = getData() as? CopiedData.Text
             while (true) {
                 delay(300)
                 val currentData = getData() as CopiedData.Text
-                if (currentData.text != lastData.text) {
+                if (currentData.text != lastData?.text) {
                     lastData = currentData
                     flow.value = currentData
                 }

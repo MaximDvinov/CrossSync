@@ -18,7 +18,8 @@ dependencies {
 
     implementation(projects.shared.features.clipboard.data)
     implementation(projects.shared.features.clipboard.di)
-    implementation(projects.shared.core.ui)
+//    implementation(projects.shared.features.clipboard.presentation)
+//    implementation(projects.shared.core.ui)
 }
 
 compose.desktop {
