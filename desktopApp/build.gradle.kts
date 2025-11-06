@@ -9,15 +9,23 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":sharedUI"))
     implementation(compose.ui)
     implementation(libs.jna)
     implementation(libs.jnativehook)
+    implementation(libs.composeIcons.feather)
+    implementation(libs.koin.core)
+    implementation(libs.koin.compose)
+
+    implementation(projects.shared.features.clipboard.data)
+    implementation(projects.shared.features.clipboard.di)
+    implementation(projects.shared.core.ui)
 }
 
 compose.desktop {
     application {
         mainClass = "MainKt"
+
+        jvmArgs += listOf("-Dapple.awt.UIElement=true")
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

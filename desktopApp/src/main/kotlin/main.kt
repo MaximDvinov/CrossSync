@@ -1,222 +1,167 @@
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberTrayState
 import androidx.compose.ui.window.rememberWindowState
-import com.cross.sync.App
-import com.github.kwhat.jnativehook.GlobalScreen
-import com.github.kwhat.jnativehook.NativeHookException
+import com.cross.sync.clipboard.data.ClipboardManager
+import com.cross.sync.clipboard.di.clipboardModule
+import com.cross.sync.clipboard.domain.entity.CopiedData
+import com.cross.sync.clipboard.domain.usecase.AddCopiedDataUseCase
+import com.cross.sync.clipboard.domain.usecase.InitClipboardManagerUseCase
+import com.cross.sync.clipboard.domain.usecase.ObserveCopiedDataUseCase
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
-import com.github.kwhat.jnativehook.keyboard.NativeKeyListener
-import java.awt.GraphicsEnvironment
-import java.awt.MouseInfo
-import java.awt.Rectangle
-import java.util.logging.Level
-import java.util.logging.Logger
-import javax.swing.JOptionPane
-import javax.swing.SwingUtilities
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Copy
+import kotlinx.coroutines.launch
+import org.koin.compose.KoinApplication
+import org.koin.compose.koinInject
+import org.koin.core.module.dsl.singleOf
+import org.koin.dsl.bind
+import org.koin.dsl.module
+import utils.bringAppToFront
+import utils.calculateWindowPositionUnderMouse
+import utils.getFrontmostAppBundleId
+import utils.pasteClipboardMac
+import java.awt.Robot
+import java.awt.event.KeyEvent
+import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
 
-fun getMouseAWTPosition(): Pair<Int, Int> {
-    val point = MouseInfo.getPointerInfo().location
-    return point.x to point.y
+val desktopModule = module {
+    singleOf(::DesktopClipboardManager) bind ClipboardManager::class
 }
 
-fun findScreenBoundsContaining(x: Int, y: Int): Rectangle {
-    val ge = GraphicsEnvironment.getLocalGraphicsEnvironment()
-    val devices = ge.screenDevices
-    for (device in devices) {
-        val bounds = device.defaultConfiguration.bounds
-        if (bounds.contains(x, y)) return bounds
-    }
-    return ge.defaultScreenDevice.defaultConfiguration.bounds
-}
-
-fun clampToBounds(
-    x: Int,
-    y: Int,
-    bounds: Rectangle,
-    windowWidthPx: Int,
-    windowHeightPx: Int,
-): Pair<Int, Int> {
-    var nx = x
-    var ny = y
-    return nx to ny
-}
-
-class GlobalHotkeyListener(
-    private val onHotkey: () -> Unit,
-) : NativeKeyListener {
-    private var cmdPressed = false
-    private var shiftPressed = false
-
-    override fun nativeKeyTyped(e: NativeKeyEvent?) { /* no-op */
-    }
-
-    override fun nativeKeyPressed(e: NativeKeyEvent) {
-        when (e.keyCode) {
-            NativeKeyEvent.VC_SHIFT -> shiftPressed = true
-            NativeKeyEvent.VC_META -> cmdPressed = true // macOS Command
-            NativeKeyEvent.VC_V -> {
-                if (cmdPressed && shiftPressed) {
-                    onHotkey()
-                }
-            }
-        }
-    }
-
-    override fun nativeKeyReleased(e: NativeKeyEvent) {
-        when (e.keyCode) {
-            NativeKeyEvent.VC_SHIFT -> shiftPressed = false
-            NativeKeyEvent.VC_META -> cmdPressed = false
-        }
-    }
-}
-
-/**
- * Попытка зарегистрировать глобальный хук.
- * Возвращает true если зарегистрировано, иначе false.
- * В случае macOS — показывает диалог с инструкциями по включению Accessibility.
- */
-fun tryRegisterGlobalHotkey(onHotkey: () -> Unit): Boolean {
-    return try {
-        Logger.getLogger(GlobalScreen::class.java.getPackage().name).level = Level.OFF
-        GlobalScreen.registerNativeHook()
-        GlobalScreen.addNativeKeyListener(GlobalHotkeyListener(onHotkey))
-        true
-    } catch (ex: NativeHookException) {
-        val os = System.getProperty("os.name")?.lowercase() ?: ""
-        val message = if (os.contains("mac")) {
-            """
-            Не удалось зарегистрировать глобальный хук клавиатуры.
-            
-            На macOS требуется разрешение "Accessibility" (Универсальный доступ) для приложения.
-            Чтобы разрешить:
-            
-            1) Откройте System Settings → Privacy & Security → Accessibility (Универсальный доступ).
-            2) Нажмите замок и разблокируйте изменения.
-            3) Добавьте ваше приложение (или Android Studio, если вы запускаете из IDE).
-            4) Перезапустите приложение.
-            
-            Детали ошибки: ${ex.message}
-            """.trimIndent()
-        } else {
-            "Не удалось зарегистрировать глобальный хук: ${ex.message}"
-        }
-        SwingUtilities.invokeLater {
-            JOptionPane.showMessageDialog(
-                null,
-                message,
-                "Глобальный хоткей не зарегистрирован",
-                JOptionPane.WARNING_MESSAGE
-            )
-        }
-        false
-    }
-}
-
-fun unregisterGlobalHotkeyIfRegistered() {
-    try {
-        if (GlobalScreen.isNativeHookRegistered()) {
-            GlobalScreen.unregisterNativeHook()
-        }
-    } catch (_: Exception) { /* ignore */
-    }
-}
-
-fun bringAppWindowsToFront() {
-    SwingUtilities.invokeLater {
-        java.awt.Window.getWindows().forEach { w ->
-            try {
-                if (w.isVisible) {
-                    w.toFront()
-                    w.requestFocus()
-                }
-            } catch (_: Throwable) { /* ignore individual failures */
-            }
-        }
-    }
-}
-
-fun bringAppToFront() {
-    try {
-        Runtime.getRuntime().exec(
-            arrayOf(
-                "osascript",
-                "-e",
-                "tell application \"CrossSync\" to activate"
-            )
-        )
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-}
-
-fun calculateWindowPositionUnderMouse(
-    windowStateWidthDp: androidx.compose.ui.unit.Dp,
-    windowStateHeightDp: androidx.compose.ui.unit.Dp,
-    density: androidx.compose.ui.unit.Density
-): WindowPosition {
-    val (mx, my) = getMouseAWTPosition()
-    val bounds = findScreenBoundsContaining(mx, my)
-    val offsetY = 8 // px ниже курсора
-    val windowWidthPx = with(density) { windowStateWidthDp.toPx() }.toInt()
-    val windowHeightPx = with(density) { windowStateHeightDp.toPx() }.toInt()
-
-    var desiredX = mx - windowWidthPx / 4 // центрируем по X
-    var desiredY = my - windowHeightPx / 4
-
-//    val (nx, ny) = clampToBounds(desiredX, desiredY, bounds, windowWidthPx, windowHeightPx)
-
-    println("bounds: $bounds")
-    println("desiredX: $desiredX, desiredY: $desiredY")
-    println("nx: $desiredX, ny: $desiredY")
-
-    return WindowPosition.Absolute((desiredX).dp, (desiredY).dp)
-}
-
+@OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
 fun main() = application {
-    val windowWidthDp = 300.dp
-    val windowHeightDp = 400.dp
-
-    var showWindow by remember { mutableStateOf(false) }
-    val windowState = rememberWindowState(width = windowWidthDp, height = windowHeightDp)
-
-    // регистрация глобального хоткея (DisposableEffect чтобы отписаться при выходе)
-    DisposableEffect(Unit) {
-        val toggleAction = {
-            showWindow = !showWindow
+    KoinApplication({
+        modules(desktopModule, clipboardModule)
+    }) {
+        val initClipboardManagerUseCase = koinInject<InitClipboardManagerUseCase>()
+        LaunchedEffect(Unit) {
+            initClipboardManagerUseCase.invoke()
         }
-        val registered = tryRegisterGlobalHotkey(toggleAction)
-        onDispose {
-            if (registered) unregisterGlobalHotkeyIfRegistered()
+        val observeCopiedDataUseCase = koinInject<ObserveCopiedDataUseCase>()
+        val setCopiedData = koinInject<AddCopiedDataUseCase>()
+
+        val windowWidthDp = 400.dp
+        val windowHeightDp = 500.dp
+
+        var showWindow by remember { mutableStateOf(false) }
+        val windowState = rememberWindowState(width = windowWidthDp, height = windowHeightDp)
+        var prevAppId by remember { mutableStateOf<String?>(null) }
+
+
+        DisposableEffect(Unit) {
+            val showClipboardContentAction = {
+                prevAppId = getFrontmostAppBundleId()
+                showWindow = !showWindow
+            }
+
+            val hideWindowAction = {
+                showWindow = false
+            }
+
+            val showClipboardHotKey =
+                tryRegisterGlobalHotkey(
+                    GlobalHotkeyListener(showClipboardContentAction) { pressedKeys ->
+                        pressedKeys.contains(NativeKeyEvent.VC_SHIFT) &&
+                                pressedKeys.contains(NativeKeyEvent.VC_META) &&
+                                pressedKeys.contains(NativeKeyEvent.VC_V)
+                    },
+                    GlobalHotkeyListener(hideWindowAction) { pressedKeys ->
+                        pressedKeys.contains(NativeKeyEvent.VC_ESCAPE)
+                    }
+                )
+
+            onDispose {
+                if (showClipboardHotKey) unregisterGlobalHotkeyIfRegistered()
+            }
         }
-    }
 
-    val density = LocalDensity.current
+        val density = LocalDensity.current
 
-    LaunchedEffect(showWindow) {
-        if (showWindow) {
-            windowState.position = calculateWindowPositionUnderMouse(windowWidthDp, windowHeightDp, density)
-
-            // поднимаем окно наверх и запрашиваем фокус
-            bringAppToFront()
-            bringAppWindowsToFront()
+        LaunchedEffect(showWindow) {
+            if (showWindow) {
+                windowState.position =
+                    calculateWindowPositionUnderMouse(windowWidthDp, windowHeightDp, density)
+            }
         }
-    }
 
-    Window(
-        title = "CrossSync",
-        state = windowState,
-        visible = showWindow,
-        onCloseRequest = { showWindow = false }
-    ) {
-        App()
+        Tray(
+            icon = rememberVectorPainter(FeatherIcons.Copy),
+            onAction = { showWindow = !showWindow },
+            state = rememberTrayState()
+        )
+
+        val clipboardData by observeCopiedDataUseCase().collectAsState(listOf())
+
+        Window(
+            title = "CrossSync",
+            state = windowState,
+            visible = showWindow,
+            alwaysOnTop = true,
+            onCloseRequest = { showWindow = false },
+//            undecorated = true
+        ) {
+            val coroutineScope = rememberCoroutineScope()
+            Column(
+                modifier = Modifier.fillMaxWidth().safeContentPadding()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                clipboardData.takeLast(40).reversed().forEach {
+                    BasicText(
+                        (it as CopiedData.Text).text,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).clickable {
+                            coroutineScope.launch {
+                                setCopiedData(it)
+                                val robot = Robot()
+                                val isMac =
+                                    System.getProperty("os.name").lowercase().contains("mac")
+                                val modifier = if (isMac) KeyEvent.VK_META else KeyEvent.VK_CONTROL
+
+                                showWindow = false
+
+                                prevAppId?.let { it1 -> bringAppToFront(it1) }
+
+                                pasteClipboardMac()
+                            }
+                        },
+                        style = TextStyle(color = Color.Black, fontSize = 16.sp)
+                    )
+                }
+
+                prevAppId?.let { text ->
+                    BasicText(
+                        text = text,
+                    )
+                }
+            }
+        }
     }
 }
+

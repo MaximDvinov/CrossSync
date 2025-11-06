@@ -1,4 +1,5 @@
 rootProject.name = "CrossSync"
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
@@ -33,7 +34,13 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention").version("1.0.0")
 }
 
-include(":sharedUI")
+include(":shared:core:ui")
+include(":shared:features:clipboard:domain")
+include(":shared:features:clipboard:data")
+include(":shared:features:clipboard:di")
+include(":shared:features:clipboard:presentation")
+
+
 include(":androidApp")
 include(":desktopApp")
 
