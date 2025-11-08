@@ -7,6 +7,7 @@ package com.cross.sync.theme
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.IndicationNodeFactory
+import androidx.compose.foundation.interaction.HoverInteraction
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.Composable
@@ -36,14 +37,16 @@ private class ScaleIndicationNode(
      * Выполняет анимацию масштабирования до уменьшенного состояния (0.9x)
      */
     private suspend fun animateToPressed() {
-        animatedScalePercent.animateTo(0.9f, defaultSpec)
+        animatedScalePercent.animateTo(0.95f, defaultSpec)
     }
 
     /**
      * Выполняет возврат элемента к исходному масштабу через промежуточную анимацию.
      */
     private suspend fun animateToResting() {
-        animatedScalePercent.animateTo(0.9f, defaultSpec)
+        if (animatedScalePercent.value < 0.95){
+            animatedScalePercent.animateTo(0.95f, defaultSpec)
+        }
         animatedScalePercent.animateTo(1f, defaultSpec)
     }
 
@@ -57,6 +60,7 @@ private class ScaleIndicationNode(
                     is PressInteraction.Press -> animateToPressed()
                     is PressInteraction.Release -> animateToResting()
                     is PressInteraction.Cancel -> animateToResting()
+                    is HoverInteraction.Exit -> animateToResting()
                 }
             }
         }

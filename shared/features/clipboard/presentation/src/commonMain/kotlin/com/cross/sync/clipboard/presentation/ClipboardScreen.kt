@@ -1,7 +1,6 @@
 package com.cross.sync.clipboard.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,12 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.cross.sync.clipboard.presentation.ui.CopiedDataItem
 import com.cross.sync.theme.AppTheme
@@ -23,6 +21,7 @@ import org.koin.compose.koinInject
 @Suppress("NonSkippableComposable")
 @Composable
 fun ClipboardScreen(
+    modifier: Modifier,
     viewModel: ClipboardViewModel = koinInject(),
     onPaste: () -> Unit,
 ) {
@@ -31,7 +30,7 @@ fun ClipboardScreen(
 
     AppTheme {
         Column(
-            modifier = Modifier.fillMaxSize().background(AppTheme.colors.background)
+            modifier = modifier.fillMaxSize().background(AppTheme.colors.background)
         ) {
             LazyColumn(
                 modifier = Modifier,
@@ -48,7 +47,6 @@ fun ClipboardScreen(
                                     if (event.type == androidx.compose.ui.input.pointer.PointerEventType.Press) {
                                         val currentTime = System.currentTimeMillis()
                                         if (currentTime - lastClickTime < 250) {
-                                            // двойной клик
                                             viewModel.addCopiedData(copiedData)
                                             onPaste()
                                         }

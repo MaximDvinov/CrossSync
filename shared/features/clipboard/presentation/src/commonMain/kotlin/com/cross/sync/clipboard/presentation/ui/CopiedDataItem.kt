@@ -12,18 +12,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cross.sync.clipboard.domain.entity.CopiedData
+import com.cross.sync.clipboard.presentation.CopiedDataStable
 import com.cross.sync.theme.AppTheme
 
 @Suppress("NonSkippableComposable")
 @Composable
 fun CopiedDataItem(
     modifier: Modifier = Modifier,
-    copiedData: CopiedData,
+    copiedData: CopiedDataStable,
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
     when (copiedData) {
-        is CopiedData.Text -> TextCopiedDataItem(
+        is CopiedDataStable.Text -> TextCopiedDataItem(
             modifier = modifier,
             copiedData = copiedData,
             isCurrent = isSelected,
@@ -36,7 +37,7 @@ fun CopiedDataItem(
 @Composable
 fun TextCopiedDataItem(
     modifier: Modifier,
-    copiedData: CopiedData.Text,
+    copiedData: CopiedDataStable.Text,
     isCurrent: Boolean,
     onClick: () -> Unit,
 ) {
@@ -47,9 +48,8 @@ fun TextCopiedDataItem(
         modifier
     }
     Box(
-        modifier = selectableModifier
+        modifier = Modifier.clickable(onClick = onClick).then(selectableModifier)
             .clip(AppTheme.shapes.round10)
-            .clickable(onClick = onClick)
             .background(AppTheme.colors.surface)
             .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {

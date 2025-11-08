@@ -23,6 +23,7 @@ fun AppTheme(
 ) {
     val systemIsDark = isSystemInDarkTheme()
     val isDarkState = remember(systemIsDark) { mutableStateOf(systemIsDark) }
+    val scaleIndication = rememberScaleIndication()
 
     CompositionLocalProvider(
         LocalThemeIsDark provides isDarkState,
@@ -30,6 +31,11 @@ fun AppTheme(
         LocalAppShapes provides AppShapes(),
         LocalAppIcons provides AppIcons(),
         LocalAppTypography provides AppTypography(),
+        LocalRippleConfiguration provides RippleConfiguration(
+            color = Color.Transparent,
+            RippleAlpha(0f, 0f, 0f, 0f)
+        ),
+        LocalIndication provides scaleIndication,
     ) {
         val isDark by isDarkState
         onThemeChanged(!isDark)
@@ -55,13 +61,6 @@ object AppTheme {
         @Composable
         get() = LocalAppIcons.current
 }
-
-
-
-
-
-
-
 
 
 // TODO: Реализовать позже        LocalRippleConfiguration provides RippleConfiguration(

@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.awt.Toolkit
 import java.awt.datatransfer.Clipboard
-import java.awt.datatransfer.FlavorEvent
 import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
+import javax.swing.SwingUtilities
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -28,7 +28,7 @@ class DesktopClipboardManager() : ClipboardManager {
         coroutineScope.launch {
             var lastData: CopiedData.Text? = getData() as? CopiedData.Text
             while (true) {
-                delay(300)
+                delay(100)
                 val currentData = getData() as CopiedData.Text
                 if (currentData.text != lastData?.text) {
                     lastData = currentData
@@ -72,14 +72,30 @@ class DesktopClipboardManager() : ClipboardManager {
 
     @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
     override suspend fun getData(): CopiedData? {
-        val data =
-            clipboard.getData(java.awt.datatransfer.DataFlavor.stringFlavor) as? String
-        return data?.let {
-            CopiedData.Text(
-                id = Uuid.random(),
-                text = it,
-                date = Clock.System.now()
-            )
+        return try {
+            var data: String? = null
+            val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+
+            // Вызов внутри EDT (AWT-поток)
+            SwingUtilities.invokeAndWait {
+                try {
+                    data = clipboard.getData(java.awt.datatransfer.DataFlavor.stringFlavor) as? String
+                } catch (e: Exception) {
+                    // macOS иногда выбрасывает NPE или IllegalStateException
+                    println("Clipboard read error: ${e.message}")
+                }
+            }
+
+            data?.let {
+                CopiedData.Text(
+                    id = Uuid.random(),
+                    text = it,
+                    date = Clock.System.now()
+                )
+            }
+        } catch (e: Exception) {
+            println("Clipboard exception: ${e.message}")
+            null
         }
     }
 }
