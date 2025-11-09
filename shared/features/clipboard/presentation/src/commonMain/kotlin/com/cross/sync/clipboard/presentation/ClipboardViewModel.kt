@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalUuidApi::class)
+
 package com.cross.sync.clipboard.presentation
 
 import androidx.lifecycle.ViewModel
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.uuid.ExperimentalUuidApi
 
 class ClipboardViewModel(
     private val addCopiedDataUseCase: AddCopiedDataUseCase,
@@ -40,7 +43,7 @@ class ClipboardViewModel(
 
     fun addCopiedData(data: CopiedDataStable) {
         viewModelScope.launch {
-            addCopiedDataUseCase(data.toDomain())
+            addCopiedDataUseCase(data.id)
         }
     }
 }
