@@ -35,6 +35,22 @@ sealed class CopiedDataStable(
     }
 
     @Stable
+    class FormattedText(
+        id: Uuid = Uuid.random(),
+        val text: String,
+        val mimeType: String, // "text/html" или "text/rtf"
+        date: Instant = Clock.System.now(),
+    ) : CopiedDataStable(id, date) {
+        override fun hashCode(): Int = text.hashCode() * 31 + mimeType.hashCode()
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other == null || other::class != this::class) return false
+            val o = other as? FormattedText ?: return false
+            return text == o.text && mimeType == o.mimeType
+        }
+    }
+
+    @Stable
     class Image(
         id: Uuid = Uuid.random(),
         val imagePath: String,
@@ -68,32 +84,9 @@ sealed class CopiedDataStable(
 
 fun CopiedData.toStable(): CopiedDataStable = when (this) {
     is CopiedData.Text -> CopiedDataStable.Text(id, text, date)
-    is CopiedData.FormattedText -> CopiedDataStable.Text(id, text, date)
+    is CopiedData.FormattedText -> CopiedDataStable.FormattedText(id, text, mimeType, date)
     is CopiedData.Image -> CopiedDataStable.Image(id, imagePath, date)
     is CopiedData.File -> CopiedDataStable.File(id, filePaths, date)
 }
 
-//suspend fun CopiedDataStable.toDomain(): CopiedData = when (this) {
-//    is CopiedDataStable.Text -> CopiedData.Text(id, text, date)
-//    is CopiedDataStable.Image -> CopiedData.Image(id, image.toBase64())
-//}
-
 expect fun String.base64ToImageBitmap(): ImageBitmap
-
-//suspend fun ImageBitmap.toBase64(): String {
-////    val buffer: IntArray =
-////    withContext(Dispatchers.Main){
-////        readPixels(buffer = buffer)
-////    }
-//    return this.toPixelMap().buffer.toBase64()
-//}
-
-
-//fun IntArray.toBase64(): String {
-//    val byteBuffer = ByteBuffer.allocate(this.size * Int.SIZE_BYTES)
-//    for (i in this) {
-//        byteBuffer.putInt(i)
-//    }
-//    val byteArray = byteBuffer.array()
-//    return Base64.encode(byteArray)
-//}

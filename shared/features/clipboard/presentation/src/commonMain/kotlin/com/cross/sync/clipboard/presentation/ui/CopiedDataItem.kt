@@ -15,8 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import be.digitalia.compose.htmlconverter.HtmlStyle
+import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
 import coil3.compose.AsyncImage
 import com.cross.sync.clipboard.presentation.CopiedDataStable
 import com.cross.sync.theme.AppTheme
@@ -37,6 +41,13 @@ fun CopiedDataItem(
             onClick = onClick
         )
 
+        is CopiedDataStable.FormattedText -> FormatedCopiedDataItem(
+            modifier = modifier,
+            copiedData = copiedData,
+            isCurrent = isSelected,
+            onClick = onClick
+        )
+
         is CopiedDataStable.Image -> ImageCopiedDataItem(
             modifier = modifier,
             copiedData = copiedData,
@@ -50,8 +61,6 @@ fun CopiedDataItem(
             isCurrent = isSelected,
             onClick = onClick
         )
-
-        else -> {}
     }
 }
 
@@ -104,9 +113,40 @@ fun TextCopiedDataItem(
     ) {
         BasicText(
             text = copiedData.text,
-            style = AppTheme.typography.regular16.copy(color = AppTheme.colors.onSurface),
+            style = AppTheme.typography.regular14.copy(color = AppTheme.colors.onSurface),
             maxLines = 4,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Suppress("NonSkippableComposable")
+@Composable
+fun FormatedCopiedDataItem(
+    modifier: Modifier,
+    copiedData: CopiedDataStable.FormattedText,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+) {
+    val selectableModifier = if (isCurrent) {
+        modifier.border(2.dp, AppTheme.colors.primary, AppTheme.shapes.round10)
+    } else {
+        modifier
+    }
+    Box(
+        modifier = Modifier.clickable(onClick = onClick).then(selectableModifier)
+            .clip(AppTheme.shapes.round10)
+            .background(AppTheme.colors.surface)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
+        BasicText(
+            text = htmlToAnnotatedString(
+                copiedData.text,
+                style = HtmlStyle(isTextColorEnabled = true, indentUnit = 16.sp)
+            ),
+            style = AppTheme.typography.regular14.copy(color = AppTheme.colors.onSurface),
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

@@ -1,5 +1,6 @@
 @file:OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
 
+import androidx.compose.ui.util.fastJoinToString
 import com.cross.sync.clipboard.data.ClipboardManager
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import kotlinx.coroutines.CoroutineScope
@@ -54,7 +55,7 @@ class DesktopClipboardManager() : ClipboardManager {
                 }
 
                 if (currentData != null && currentData != lastData) {
-                    println("New clipboard data: $currentData")
+                    println("New clipboard data: ${currentData.log()}")
                     lastData = currentData
                     flow.value = currentData
                 }
@@ -73,8 +74,16 @@ class DesktopClipboardManager() : ClipboardManager {
 
             is CopiedData.FormattedText -> {
                 // Provide multiple flavors: string, html as String and as InputStream (CF_HTML for Windows)
-                val htmlStringFlavor = try { DataFlavor("${data.mimeType};class=java.lang.String") } catch (_: Exception) { null }
-                val htmlStreamFlavor = try { DataFlavor("${data.mimeType};class=java.io.InputStream") } catch (_: Exception) { null }
+                val htmlStringFlavor = try {
+                    DataFlavor("${data.mimeType};class=java.lang.String")
+                } catch (_: Exception) {
+                    null
+                }
+                val htmlStreamFlavor = try {
+                    DataFlavor("${data.mimeType};class=java.io.InputStream")
+                } catch (_: Exception) {
+                    null
+                }
 
                 val flavorsList = mutableListOf<DataFlavor>().apply {
                     htmlStringFlavor?.let { add(it) }
@@ -84,7 +93,8 @@ class DesktopClipboardManager() : ClipboardManager {
 
                 val transferable = object : Transferable {
                     override fun getTransferDataFlavors(): Array<DataFlavor> = flavorsList
-                    override fun isDataFlavorSupported(f: DataFlavor): Boolean = flavorsList.any { it == f }
+                    override fun isDataFlavorSupported(f: DataFlavor): Boolean =
+                        flavorsList.any { it == f }
 
                     override fun getTransferData(f: DataFlavor): Any {
                         return when {
@@ -100,6 +110,7 @@ class DesktopClipboardManager() : ClipboardManager {
                                 }
                                 ByteArrayInputStream(bytes)
                             }
+
                             else -> throw UnsupportedFlavorException(f)
                         }
                     }
@@ -221,22 +232,46 @@ class DesktopClipboardManager() : ClipboardManager {
 
     private fun getFormattedTextData(contents: Transferable): CopiedData.FormattedText? {
         return try {
-            val htmlStringFlavor = try { DataFlavor("text/html;class=java.lang.String") } catch (_: Exception) { null }
-            val htmlStreamFlavor = try { DataFlavor("text/html;class=java.io.InputStream") } catch (_: Exception) { null }
-            val rtfStreamFlavor = try { DataFlavor("text/rtf;class=java.io.InputStream") } catch (_: Exception) { null }
+            val htmlStringFlavor = try {
+                DataFlavor("text/html;class=java.lang.String")
+            } catch (_: Exception) {
+                null
+            }
+            val htmlStreamFlavor = try {
+                DataFlavor("text/html;class=java.io.InputStream")
+            } catch (_: Exception) {
+                null
+            }
+            val rtfStreamFlavor = try {
+                DataFlavor("text/rtf;class=java.io.InputStream")
+            } catch (_: Exception) {
+                null
+            }
 
             var formattedText: String? = null
             var mimeType: String? = null
 
             if (htmlStringFlavor != null && contents.isDataFlavorSupported(htmlStringFlavor)) {
-                formattedText = try { contents.getTransferData(htmlStringFlavor) as? String } catch (_: Exception) { null }
+                formattedText = try {
+                    contents.getTransferData(htmlStringFlavor) as? String
+                } catch (_: Exception) {
+                    null
+                }
                 mimeType = "text/html"
             } else if (htmlStreamFlavor != null && contents.isDataFlavorSupported(htmlStreamFlavor)) {
-                val stream = try { contents.getTransferData(htmlStreamFlavor) as? InputStream } catch (_: Exception) { null }
+                val stream = try {
+                    contents.getTransferData(htmlStreamFlavor) as? InputStream
+                } catch (_: Exception) {
+                    null
+                }
                 formattedText = stream?.bufferedReader()?.use { it.readText() }
                 mimeType = "text/html"
             } else if (rtfStreamFlavor != null && contents.isDataFlavorSupported(rtfStreamFlavor)) {
-                val stream = try { contents.getTransferData(rtfStreamFlavor) as? InputStream } catch (_: Exception) { null }
+                val stream = try {
+                    contents.getTransferData(rtfStreamFlavor) as? InputStream
+                } catch (_: Exception) {
+                    null
+                }
                 formattedText = stream?.bufferedReader()?.use { it.readText() }
                 mimeType = "text/rtf"
             }
@@ -279,14 +314,20 @@ class DesktopClipboardManager() : ClipboardManager {
 
     private fun getPlainTextData(contents: Transferable): CopiedData.Text? {
         return try {
-            val text = try { clipboard.getData(DataFlavor.stringFlavor) as? String } catch (e: Exception) { null }
+            val text = try {
+                clipboard.getData(DataFlavor.stringFlavor) as? String
+            } catch (e: Exception) {
+                null
+            }
             if (text.isNullOrEmpty()) return null
             val hash = computeStringHash(text, "text/plain")
             val existing = savedCopiedData[hash]
             if (existing == null) {
                 // prefer reusing a FormattedText that contains same plain text
                 val found = savedCopiedData.values.firstOrNull {
-                    (it is CopiedData.FormattedText && stripHtmlToPlain(it.text) == stripHtmlToPlain(text)) ||
+                    (it is CopiedData.FormattedText && stripHtmlToPlain(it.text) == stripHtmlToPlain(
+                        text
+                    )) ||
                             (it is CopiedData.Text && it.text == text)
                 }
                 if (found != null) {
@@ -480,10 +521,12 @@ private fun buildCfHtml(html: String): String {
     val startFragment = pre.length + startFragmentMarker.length
     val endFragment = startFragment + utf8.size
 
-    val headerWithOffsets = pre.replaceRange(0, pre.length, String.format(
-        "Version:1.0\r\nStartHTML:%08d\r\nEndHTML:%08d\r\nStartFragment:%08d\r\nEndFragment:%08d\r\n",
-        startHtml, endHtml, startFragment, endFragment
-    ))
+    val headerWithOffsets = pre.replaceRange(
+        0, pre.length, String.format(
+            "Version:1.0\r\nStartHTML:%08d\r\nEndHTML:%08d\r\nStartFragment:%08d\r\nEndFragment:%08d\r\n",
+            startHtml, endHtml, startFragment, endFragment
+        )
+    )
 
     return headerWithOffsets + startFragmentMarker + html + endFragmentMarker
 }
@@ -500,26 +543,44 @@ private fun htmlUnescape(input: String): String {
             if (semicolon > i) {
                 val entity = input.substring(i + 1, semicolon)
                 when {
-                    entity.equals("lt", true) -> { sb.append('<'); i = semicolon + 1; continue }
-                    entity.equals("gt", true) -> { sb.append('>'); i = semicolon + 1; continue }
-                    entity.equals("amp", true) -> { sb.append('&'); i = semicolon + 1; continue }
-                    entity.equals("quot", true) -> { sb.append('"'); i = semicolon + 1; continue }
-                    entity.equals("apos", true) -> { sb.append('\''); i = semicolon + 1; continue }
+                    entity.equals("lt", true) -> {
+                        sb.append('<'); i = semicolon + 1; continue
+                    }
+
+                    entity.equals("gt", true) -> {
+                        sb.append('>'); i = semicolon + 1; continue
+                    }
+
+                    entity.equals("amp", true) -> {
+                        sb.append('&'); i = semicolon + 1; continue
+                    }
+
+                    entity.equals("quot", true) -> {
+                        sb.append('"'); i = semicolon + 1; continue
+                    }
+
+                    entity.equals("apos", true) -> {
+                        sb.append('\''); i = semicolon + 1; continue
+                    }
+
                     entity.startsWith("#x") || entity.startsWith("#X") -> {
                         try {
                             val code = entity.substring(2).toInt(16)
                             sb.append(code.toChar())
                             i = semicolon + 1
                             continue
-                        } catch (_: Exception) {}
+                        } catch (_: Exception) {
+                        }
                     }
+
                     entity.startsWith("#") -> {
                         try {
                             val code = entity.substring(1).toInt()
                             sb.append(code.toChar())
                             i = semicolon + 1
                             continue
-                        } catch (_: Exception) {}
+                        } catch (_: Exception) {
+                        }
                     }
                 }
             }
@@ -528,4 +589,24 @@ private fun htmlUnescape(input: String): String {
         i++
     }
     return sb.toString()
+}
+
+fun CopiedData.log(): String {
+    return when (this) {
+        is CopiedData.File -> {
+            filePaths.fastJoinToString()
+        }
+
+        is CopiedData.FormattedText -> {
+            "$mimeType: $text"
+        }
+
+        is CopiedData.Image -> {
+            imagePath
+        }
+
+        is CopiedData.Text -> {
+            text
+        }
+    }
 }

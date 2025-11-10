@@ -58,7 +58,7 @@ sealed class CopiedData(
     class FormattedText(
         id: Uuid = Uuid.random(),
         val text: String,
-        val mimeType: String, // "text/html" или "text/rtf"
+        val mimeType: String,
         date: Instant = Clock.System.now(),
     ) : CopiedData(id, date) {
         override fun hashCode(): Int = text.hashCode() * 31 + mimeType.hashCode()

@@ -28,6 +28,7 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
 
             implementation(libs.coil.compose)
+            implementation(libs.htmlconverter)
 
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
