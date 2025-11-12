@@ -1,7 +1,6 @@
 package com.cross.sync.clipboard.data
 
 import com.cross.sync.clipboard.domain.entity.CopiedData
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 interface ClipboardManager {

@@ -86,8 +86,9 @@ fun ClipboardScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(copiedDataListState, key = { it.id }) { copiedData ->
+
                     CopiedDataItem(
-                        modifier = Modifier.fillMaxWidth().pointerInput(copiedData) {
+                        modifier = Modifier.animateItem().fillMaxWidth().pointerInput(copiedData) {
                             awaitPointerEventScope {
                                 var lastClickTime = 0L
                                 while (true) {
@@ -107,6 +108,9 @@ fun ClipboardScreen(
                         isSelected = copiedData == currentCopiedDataListState,
                         onClick = {
                             viewModel.addCopiedData(copiedData)
+                        },
+                        onDeleteClick = {
+                            viewModel.deleteCopiedData(copiedData)
                         }
                     )
                 }

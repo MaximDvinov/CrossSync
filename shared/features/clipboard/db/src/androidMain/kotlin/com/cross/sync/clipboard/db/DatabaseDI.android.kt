@@ -12,4 +12,8 @@ actual val databaseModule: Module
         single<ClipboardDao> {
             get<AppDatabase>().getClipboardDao()
         }
+
+        single<ApplicationDao> {
+            get<AppDatabase>().getApplicationDao()
+        }
     }

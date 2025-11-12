@@ -1,6 +1,7 @@
 [versions]
 # Build
 agp = "8.12.3"
+ddPlist = "1.28"
 kotlin = "2.2.21"
 compose-hot-reload = "1.0.0-rc02"
 
@@ -45,6 +46,7 @@ ui = "1.10.0-beta01"
 
 [libraries]
 # Compose
+dd-plist = { module = "com.googlecode.plist:dd-plist", version.ref = "ddPlist" }
 ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
 ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "compose" }
 ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose" }

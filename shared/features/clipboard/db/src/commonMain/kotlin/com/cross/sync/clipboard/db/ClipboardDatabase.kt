@@ -6,16 +6,15 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.RoomDatabaseConstructor
 import androidx.room.TypeConverters
-import androidx.room.migration.AutoMigrationSpec
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import com.cross.sync.clipboard.db.entities.Application
+import com.cross.sync.clipboard.db.entities.ApplicationEntity
 import com.cross.sync.clipboard.db.entities.CopiedDataConverters
 import com.cross.sync.clipboard.db.entities.CopiedDataEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 @Database(
-    entities = [CopiedDataEntity::class, Application::class],
+    entities = [CopiedDataEntity::class, ApplicationEntity::class],
     version = 2,
     autoMigrations = [AutoMigration(from = 1, to = 2)]
 )
@@ -23,6 +22,7 @@ import kotlinx.coroutines.IO
 @ConstructedBy(AppDatabaseConstructor::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun getClipboardDao(): ClipboardDao
+    abstract fun getApplicationDao(): ApplicationDao
 }
 
 @Suppress("KotlinNoActualForExpect")

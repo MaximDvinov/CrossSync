@@ -6,12 +6,10 @@ import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.clipboard.domain.repository.SystemClipboardRepository
 import kotlin.uuid.ExperimentalUuidApi
 
-class AddCopiedDataUseCase(
-    private val systemClipboardRepository: SystemClipboardRepository,
+class DeleteCopiedDataByIdUseCase(
     private val localClipboardRepository: LocalClipboardRepository,
 ) {
     suspend operator fun invoke(id: Int) {
-        val data = localClipboardRepository.getCopiedDataById(id)
-        data?.let { systemClipboardRepository.setData(it) }
+        localClipboardRepository.deleteCopiedDataById(id)
     }
 }

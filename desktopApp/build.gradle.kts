@@ -19,6 +19,8 @@ dependencies {
 
     implementation(libs.tulskiy.jkeymaster)
     implementation(libs.composenativetray)
+
+    implementation(libs.dd.plist)
 //    implementation(projects.shared.features.clipboard.presentation)
 //    implementation(projects.shared.core.ui)
 }

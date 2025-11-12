@@ -5,6 +5,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.dp
 
 class AppShapes {
+    val round3: RoundedCornerShape
+        get() = RoundedCornerShape(3.dp)
     val round8: RoundedCornerShape
         get() = RoundedCornerShape(8.dp)
     val round10: RoundedCornerShape

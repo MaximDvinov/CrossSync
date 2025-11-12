@@ -28,6 +28,8 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.cross.sync.clipboard.data.ClipboardManager
 import com.cross.sync.clipboard.di.clipboardModule
+import com.cross.sync.clipboard.domain.entity.Application
+import com.cross.sync.clipboard.domain.usecase.SaveApplicationsUseCase
 import com.cross.sync.clipboard.presentation.ClipboardScreen
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import com.kdroid.composetray.tray.api.Tray
@@ -45,6 +47,7 @@ import org.koin.dsl.module
 import utils.bringAppToFront
 import utils.calculateWindowPositionUnderMouse
 import utils.getFrontmostAppBundleId
+import utils.getInstalledApplications
 import utils.pasteClipboardMac
 import java.awt.Dimension
 import java.awt.Toolkit
@@ -58,7 +61,7 @@ val desktopModule = module {
     singleOf(::GlobalHotkeyManager)
 }
 
-@OptIn(ExperimentalTime::class,  ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalTime::class, ExperimentalComposeUiApi::class)
 fun main() = application {
     KoinApplication({
         modules(desktopModule, clipboardModule)
@@ -66,8 +69,21 @@ fun main() = application {
         val screenSize = remember { Toolkit.getDefaultToolkit().screenSize }
         val density = LocalDensity.current
         val globalHotkeyManager = koinInject<GlobalHotkeyManager>()
+        val applicationsUseCase = koinInject<SaveApplicationsUseCase>()
         val windowWidthDp = 350.dp
-        val windowHeightDp = 400.dp
+        val windowHeightDp = 500.dp
+
+        LaunchedEffect(Unit) {
+            launch {
+                val applications = getInstalledApplications() + Application(
+                    id = "com.apple.finder",
+                    name = "Finder",
+                    null,
+                    ""
+                )
+                applicationsUseCase(applications)
+            }
+        }
 
         var showWindow by remember { mutableStateOf(false) }
         var isTopBar by remember { mutableStateOf(false) }

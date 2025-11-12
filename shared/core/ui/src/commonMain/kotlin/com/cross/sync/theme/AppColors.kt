@@ -20,9 +20,9 @@ val lightColors by lazy {
         onPrimary = Color(0xFFF7FCFF),
         surface = Color(0xFFFEFFFF),
         onSurface = Color(0xFF00253C),
-        surfaceVariant = Color(0xFFE9F3FF),
+        surfaceVariant = Color(0xFFDCECFF),
         onSurfaceVariant = Color(0xFF02609B),
-        background = Color(0xFFF6F9FB),
+        background = Color(0xFFF0F9FF),
         outline = Color(0xFF7989A2),
     )
 }

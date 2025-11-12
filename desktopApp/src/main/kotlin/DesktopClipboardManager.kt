@@ -1,4 +1,4 @@
-@file:OptIn( ExperimentalTime::class)
+@file:OptIn(ExperimentalTime::class)
 
 import androidx.compose.ui.util.fastJoinToString
 import com.cross.sync.clipboard.data.ClipboardManager
@@ -6,7 +6,6 @@ import com.cross.sync.clipboard.domain.entity.CopiedData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -25,15 +24,12 @@ import java.io.File
 import java.io.InputStream
 import java.nio.charset.Charset
 import java.security.MessageDigest
-import java.util.LinkedHashMap
 import javax.imageio.ImageIO
 import javax.swing.SwingUtilities
 import javax.swing.text.BadLocationException
 import javax.swing.text.rtf.RTFEditorKit
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 /**
  * Desktop clipboard manager with improved handling for formatted text (HTML/RTF), images and files.
@@ -74,7 +70,7 @@ class DesktopClipboardManager() : ClipboardManager {
                 }
 
                 if (currentData != null && currentData != lastData) {
-                    println("New clipboard data: ${currentData.log()}")
+                    println("Clipboard:${currentData.applicationId} ${currentData.log()}")
                     lastData = currentData
                     flow.value = currentData
                     interval = 500L
@@ -86,7 +82,7 @@ class DesktopClipboardManager() : ClipboardManager {
         return flow
     }
 
-    @OptIn( ExperimentalTime::class)
+    @OptIn(ExperimentalTime::class)
     override fun observeData(): StateFlow<CopiedData?> {
         return flow
     }

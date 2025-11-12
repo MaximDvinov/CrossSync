@@ -1,13 +1,14 @@
-@file:OptIn( ExperimentalTime::class)
+@file:OptIn(ExperimentalTime::class)
 
 package com.cross.sync.clipboard.data.mappers
 
+import com.cross.sync.clipboard.db.entities.ApplicationEntity
 import com.cross.sync.clipboard.db.entities.CopiedDataEntity
 import com.cross.sync.clipboard.db.entities.CopiedDataType
+import com.cross.sync.clipboard.domain.entity.Application
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
-import kotlin.uuid.ExperimentalUuidApi
 
 fun CopiedData.toEntity(): CopiedDataEntity {
     return when (this) {
@@ -85,3 +86,11 @@ fun CopiedDataEntity.toDomain(): CopiedData {
         )
     }
 }
+
+fun ApplicationEntity.toDomain() = Application(
+    id = id, name = name, icon = icon, path = path
+)
+
+fun Application.toEntity() = ApplicationEntity(
+    id = id, name = name, icon = icon, path = path
+)

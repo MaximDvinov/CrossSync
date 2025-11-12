@@ -37,6 +37,11 @@ fun getNowDate(): LocalDate {
     return now.toLocalDateTime(TimeZone.currentSystemDefault()).date
 }
 
+fun nowDateTime(): LocalDate {
+    val now: Instant = Clock.System.now()
+    return now.toLocalDateTime(TimeZone.currentSystemDefault()).date
+}
+
 
 fun LocalDateTime.humanize(): String {
     return dateTimeFormat.format(this)

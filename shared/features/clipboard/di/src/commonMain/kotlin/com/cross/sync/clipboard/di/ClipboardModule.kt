@@ -1,17 +1,21 @@
 package com.cross.sync.clipboard.di
 
+import com.cross.sync.clipboard.data.repositories.ApplicationRepositoryImpl
 import com.cross.sync.clipboard.data.repositories.LocalClipboardRepositoryImpl
 import com.cross.sync.clipboard.data.repositories.SystemClipboardRepositoryImpl
 import com.cross.sync.clipboard.db.databaseModule
+import com.cross.sync.clipboard.domain.repository.ApplicationRepository
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.clipboard.domain.repository.SystemClipboardRepository
 import com.cross.sync.clipboard.domain.usecase.AddCopiedDataUseCase
+import com.cross.sync.clipboard.domain.usecase.DeleteCopiedDataByIdUseCase
+import com.cross.sync.clipboard.domain.usecase.GetApplicationsUseCase
 import com.cross.sync.clipboard.domain.usecase.GetCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.InitClipboardManagerUseCase
 import com.cross.sync.clipboard.domain.usecase.ObserveCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.ObserveCurrentCopiedDataUseCase
+import com.cross.sync.clipboard.domain.usecase.SaveApplicationsUseCase
 import com.cross.sync.clipboard.presentation.ClipboardViewModel
-import org.koin.core.context.loadKoinModules
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -23,12 +27,17 @@ val clipboardModule: Module = module {
 
     singleOf(::SystemClipboardRepositoryImpl) bind SystemClipboardRepository::class
     singleOf(::LocalClipboardRepositoryImpl) bind LocalClipboardRepository::class
+    singleOf(::ApplicationRepositoryImpl) bind ApplicationRepository::class
 
     singleOf(::AddCopiedDataUseCase)
+    singleOf(::DeleteCopiedDataByIdUseCase)
     singleOf(::InitClipboardManagerUseCase)
     singleOf(::ObserveCopiedDataUseCase)
     singleOf(::ObserveCurrentCopiedDataUseCase)
     singleOf(::GetCopiedDataUseCase)
+
+    singleOf(::GetApplicationsUseCase)
+    singleOf(::SaveApplicationsUseCase)
 
     viewModelOf(::ClipboardViewModel)
 }

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.cross.sync.clipboard.data.repositories
 
 import com.cross.sync.clipboard.data.mappers.toDomain
@@ -11,6 +13,9 @@ import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -19,7 +24,10 @@ class LocalClipboardRepositoryImpl(
     private val dao: ClipboardDao,
 ) : LocalClipboardRepository {
     override suspend fun addCopiedData(copiedData: CopiedData) {
-        dao.insert(copiedData = copiedData.toEntity())
+        dao.insert(
+            copiedData = copiedData.toEntity()
+                .copy(dateTime = Clock.System.now().toEpochMilliseconds())
+        )
     }
 
     override suspend fun getLastCopiedData(): CopiedData? {
