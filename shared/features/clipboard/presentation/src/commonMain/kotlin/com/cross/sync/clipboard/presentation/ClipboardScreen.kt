@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalUuidApi::class)
+
 package com.cross.sync.clipboard.presentation
 
 import androidx.compose.foundation.background
@@ -13,9 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,6 +31,7 @@ import com.cross.sync.clipboard.presentation.ui.CopiedDataItem
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.Close
 import org.koin.compose.koinInject
+import kotlin.uuid.ExperimentalUuidApi
 
 @Suppress("NonSkippableComposable")
 @Composable
@@ -39,6 +44,11 @@ fun ClipboardScreen(
 ) {
     val copiedDataListState by viewModel.copiedDataListFlow.collectAsState()
     val currentCopiedDataListState by viewModel.copiedDataFlow.collectAsState()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(copiedDataListState) {
+        listState.animateScrollToItem(0)
+    }
 
     AppTheme {
         Column(
@@ -71,10 +81,11 @@ fun ClipboardScreen(
             }
             LazyColumn(
                 modifier = Modifier,
+                state = listState,
                 contentPadding = PaddingValues(start = 10.dp, end = 10.dp, bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(copiedDataListState) { copiedData ->
+                items(copiedDataListState, key = { it.id }) { copiedData ->
                     CopiedDataItem(
                         modifier = Modifier.fillMaxWidth().pointerInput(copiedData) {
                             awaitPointerEventScope {

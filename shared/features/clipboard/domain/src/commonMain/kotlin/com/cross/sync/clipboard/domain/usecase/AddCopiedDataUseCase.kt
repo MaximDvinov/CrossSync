@@ -12,7 +12,7 @@ class AddCopiedDataUseCase(
     private val systemClipboardRepository: SystemClipboardRepository,
     private val localClipboardRepository: LocalClipboardRepository,
 ) {
-    suspend operator fun invoke(id: Uuid) {
+    suspend operator fun invoke(id: Int) {
         val data = localClipboardRepository.getCopiedDataById(id)
         data?.let { systemClipboardRepository.setData(it) }
     }

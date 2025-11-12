@@ -1,48 +1,51 @@
 package com.cross.sync.clipboard.data.repositories
 
+import com.cross.sync.clipboard.data.mappers.toDomain
+import com.cross.sync.clipboard.data.mappers.toEntity
+import com.cross.sync.clipboard.db.AppDatabase
+import com.cross.sync.clipboard.db.ClipboardDao
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import kotlinx.collections.immutable.PersistentSet
 import kotlinx.collections.immutable.persistentHashSetOf
-import kotlinx.collections.immutable.toPersistentHashSet
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
-import kotlin.collections.mutableSetOf
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class LocalClipboardRepositoryImpl : LocalClipboardRepository {
-    val dataFlow = MutableStateFlow<PersistentSet<CopiedData>>(persistentHashSetOf())
-
+class LocalClipboardRepositoryImpl(
+    private val dao: ClipboardDao,
+) : LocalClipboardRepository {
     override suspend fun addCopiedData(copiedData: CopiedData) {
-        dataFlow.value = dataFlow.value.add(copiedData)
+        dao.insert(copiedData = copiedData.toEntity())
     }
 
-    override suspend fun getLastCopiedData(): CopiedData {
-        return dataFlow.value.last()
+    override suspend fun getLastCopiedData(): CopiedData? {
+        return dao.getLastCopiedData()?.toDomain()
     }
 
-    @OptIn(ExperimentalUuidApi::class)
-    override suspend fun getCopiedDataById(id: Uuid): CopiedData? {
-        return dataFlow.value.find { it.id == id }
+    override suspend fun getCopiedDataById(id: Int): CopiedData? {
+        return dao.getById(id = id)?.toDomain()
     }
 
-    override suspend fun deleteCopiedData(copiedData: CopiedData) {
-        dataFlow.value = dataFlow.value.remove(copiedData)
+    override suspend fun deleteCopiedDataById(id: Int) {
+        dao.deleteById(id)
     }
 
     override suspend fun getAllCopiedData(): List<CopiedData> {
-        return dataFlow.value.toList()
+        return dao.getAllCopiedData().map { it.toDomain() }
     }
 
     override suspend fun clearAllCopiedData() {
-        dataFlow.value = persistentHashSetOf()
+        dao.deleteAll()
     }
 
     @OptIn(ExperimentalTime::class)
     override fun observeCopiedData(): Flow<List<CopiedData>> {
-        return dataFlow.map { data -> println("${data.size}"); data.toList().sortedBy { it.date } }
+        return dao.getAllCopiedDataFlow().map { data ->
+            data.map { it.toDomain() }
+        }
     }
 }

@@ -8,7 +8,7 @@ class InitClipboardManagerUseCase(
     private val systemClipboardRepository: SystemClipboardRepository,
 ) {
     suspend operator fun invoke() {
-        systemClipboardRepository.observeData().collect { data ->
+        systemClipboardRepository.initClipboardManager().collect { data ->
             data?.let { copiedData -> localClipboardRepository.addCopiedData(copiedData) }
         }
     }

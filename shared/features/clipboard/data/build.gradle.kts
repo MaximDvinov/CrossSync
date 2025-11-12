@@ -21,6 +21,7 @@ kotlin {
             implementation(libs.kotlinx.datetime)
 
             implementation(projects.shared.features.clipboard.domain)
+            implementation(projects.shared.features.clipboard.db)
 
             implementation(libs.kotlinx.collections.immutable)
         }

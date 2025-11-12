@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
+@file:OptIn( ExperimentalTime::class)
 
 import androidx.compose.ui.util.fastJoinToString
 import com.cross.sync.clipboard.data.ClipboardManager
@@ -8,7 +8,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import utils.getFrontmostAppBundleId
 import java.awt.Image
 import java.awt.Toolkit
 import java.awt.datatransfer.Clipboard
@@ -20,34 +23,50 @@ import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
+import java.nio.charset.Charset
 import java.security.MessageDigest
-import java.util.concurrent.ConcurrentHashMap
+import java.util.LinkedHashMap
 import javax.imageio.ImageIO
 import javax.swing.SwingUtilities
+import javax.swing.text.BadLocationException
+import javax.swing.text.rtf.RTFEditorKit
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 /**
- * Desktop clipboard manager with improved handling for formatted text and deduplication.
+ * Desktop clipboard manager with improved handling for formatted text (HTML/RTF), images and files.
+ * Includes memory optimizations: LRU cache, downscaled image hashing, adaptive polling.
  */
 class DesktopClipboardManager() : ClipboardManager {
     private val clipboard: Clipboard = Toolkit.getDefaultToolkit().systemClipboard
 
-    // Map key: Int hash -> value: CopiedData
-    private val savedCopiedData = ConcurrentHashMap<Int, CopiedData>()
+    // Synchronized LRU cache for clipboard data
+    private val savedCopiedDataLock = Any()
+    private val savedCopiedData = object : LinkedHashMap<Int, CopiedData>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, CopiedData>?): Boolean {
+            return size > 256
+        }
+    }
+
+    private fun cachePut(hash: Int, value: CopiedData) {
+        synchronized(savedCopiedDataLock) { savedCopiedData[hash] = value }
+    }
+
+    private fun cacheGet(hash: Int): CopiedData? =
+        synchronized(savedCopiedDataLock) { savedCopiedData[hash] }
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    val flow: MutableStateFlow<CopiedData?> = MutableStateFlow(null)
 
-    @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
-    override fun observeData(): Flow<CopiedData?> {
-        println("Clipboard init")
-        val flow: MutableStateFlow<CopiedData?> = MutableStateFlow(null)
+    override fun init(): StateFlow<CopiedData?> {
         coroutineScope.launch {
             var lastData: CopiedData? = getData()
+            flow.update { lastData }
+            var interval = 1000L
             while (true) {
-                delay(300)
+                delay(interval)
                 val currentData = try {
                     getData()
                 } catch (e: Exception) {
@@ -58,10 +77,17 @@ class DesktopClipboardManager() : ClipboardManager {
                     println("New clipboard data: ${currentData.log()}")
                     lastData = currentData
                     flow.value = currentData
+                    interval = 500L
+                } else {
+                    interval = minOf(5000L, interval + 200L)
                 }
             }
         }
+        return flow
+    }
 
+    @OptIn( ExperimentalTime::class)
+    override fun observeData(): StateFlow<CopiedData?> {
         return flow
     }
 
@@ -73,21 +99,27 @@ class DesktopClipboardManager() : ClipboardManager {
             }
 
             is CopiedData.FormattedText -> {
-                // Provide multiple flavors: string, html as String and as InputStream (CF_HTML for Windows)
-                val htmlStringFlavor = try {
+                // Provide multiple flavors: string, html/rtf as String and as InputStream
+                val mainStringFlavor = try {
                     DataFlavor("${data.mimeType};class=java.lang.String")
                 } catch (_: Exception) {
                     null
                 }
-                val htmlStreamFlavor = try {
+                val mainStreamFlavor = try {
                     DataFlavor("${data.mimeType};class=java.io.InputStream")
+                } catch (_: Exception) {
+                    null
+                }
+                val rtfStreamFlavor = try {
+                    DataFlavor("text/rtf;class=java.io.InputStream")
                 } catch (_: Exception) {
                     null
                 }
 
                 val flavorsList = mutableListOf<DataFlavor>().apply {
-                    htmlStringFlavor?.let { add(it) }
-                    htmlStreamFlavor?.let { add(it) }
+                    mainStringFlavor?.let { add(it) }
+                    mainStreamFlavor?.let { add(it) }
+                    rtfStreamFlavor?.let { if (data.mimeType.equals("text/rtf", true)) add(it) }
                     add(DataFlavor.stringFlavor)
                 }.toTypedArray()
 
@@ -98,17 +130,30 @@ class DesktopClipboardManager() : ClipboardManager {
 
                     override fun getTransferData(f: DataFlavor): Any {
                         return when {
-                            f == DataFlavor.stringFlavor -> htmlUnescape(stripHtmlToPlain(data.text))
-                            htmlStringFlavor != null && f == htmlStringFlavor -> data.text
-                            htmlStreamFlavor != null && f == htmlStreamFlavor -> {
-                                // For InputStream provide UTF-8 bytes; for HTML also provide CF_HTML wrapper for Windows
-                                val bytes = if (data.mimeType.equals("text/html", true)) {
-                                    val cf = buildCfHtml(data.text)
-                                    cf.toByteArray(Charsets.UTF_8)
+                            // plain text consumers
+                            f == DataFlavor.stringFlavor -> {
+                                if (data.mimeType.equals("text/rtf", true)) {
+                                    data.plainText
+                                } else if (data.mimeType.equals("text/html", true)) {
+                                    htmlUnescape(stripHtmlToPlain(data.text))
                                 } else {
-                                    data.text.toByteArray(Charsets.UTF_8)
+                                    htmlUnescape(stripHtmlToPlain(data.text))
                                 }
-                                ByteArrayInputStream(bytes)
+                            }
+
+                            mainStringFlavor != null && f == mainStringFlavor -> data.text
+
+                            mainStreamFlavor != null && f == mainStreamFlavor -> {
+                                if (data.mimeType.equals("text/html", true)) {
+                                    val cf = buildCfHtml(data.text)
+                                    ByteArrayInputStream(cf.toByteArray(Charsets.UTF_8))
+                                } else {
+                                    ByteArrayInputStream(data.text.toByteArray(Charsets.UTF_8))
+                                }
+                            }
+
+                            rtfStreamFlavor != null && f == rtfStreamFlavor -> {
+                                ByteArrayInputStream(data.text.toByteArray(Charsets.ISO_8859_1))
                             }
 
                             else -> throw UnsupportedFlavorException(f)
@@ -128,21 +173,23 @@ class DesktopClipboardManager() : ClipboardManager {
             }
 
             is CopiedData.File -> {
-                // Convert stored paths to java.io.File and put on clipboard as file list
                 val files = data.filePaths.map { File(it) }
                 val transferable: Transferable = FileSelection(files)
                 clipboard.setContents(transferable) { _, _ -> }
             }
         }
+
+        flow.update { data }
     }
 
-    @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
+    @OptIn(ExperimentalTime::class)
     override suspend fun getData(): CopiedData? {
         return try {
             var result: CopiedData? = null
             SwingUtilities.invokeAndWait {
                 try {
                     val contents = clipboard.getContents(null)
+
                     if (contents != null) {
                         // 1) Files
                         result = getFilesData(contents)
@@ -177,14 +224,15 @@ class DesktopClipboardManager() : ClipboardManager {
                 if (!list.isNullOrEmpty()) {
                     val paths = list.map { it.absolutePath }
                     val hash = computeFilesHash(paths, list)
-                    val existing = savedCopiedData[hash]
+                    val existing = cacheGet(hash)
                     if (existing == null) {
                         val fileData = CopiedData.File(
                             filePaths = paths,
-                            id = Uuid.random(),
-                            date = Clock.System.now()
+                            id = hash,
+                            dateTime = Clock.System.now(),
+                            applicationId = getFrontmostAppBundleId()
                         )
-                        savedCopiedData[hash] = fileData
+                        cachePut(hash, fileData)
                         fileData
                     } else {
                         existing as? CopiedData.File
@@ -205,23 +253,24 @@ class DesktopClipboardManager() : ClipboardManager {
                     null
                 }
                 if (image != null) {
-                    val hash = imageHash(image)
-                    if (savedCopiedData[hash] == null) {
+                    val hash = imageHashDownscaled(image, 128)
+                    if (cacheGet(hash) == null) {
                         val cacheDir = File(System.getProperty("user.home"), ".crosssync/images")
                         val fileName = "${hash}.png"
                         val savedFile = saveImage(image, cacheDir, fileName)
                         println("Saved image at: ${savedFile?.absolutePath}, hash: $hash")
                         savedFile?.absolutePath?.let {
                             val imgData = CopiedData.Image(
-                                id = Uuid.random(),
+                                id = hash,
                                 imagePath = it,
-                                date = Clock.System.now()
+                                dateTime = Clock.System.now(),
+                                applicationId = getFrontmostAppBundleId()
                             )
-                            savedCopiedData[hash] = imgData
+                            cachePut(hash, imgData)
                             imgData
                         }
                     } else {
-                        savedCopiedData[hash] as? CopiedData.Image
+                        cacheGet(hash) as? CopiedData.Image
                     }
                 } else null
             } else null
@@ -248,59 +297,79 @@ class DesktopClipboardManager() : ClipboardManager {
                 null
             }
 
-            var formattedText: String? = null
+            var formattedRaw: String? = null
             var mimeType: String? = null
+            var plainNormalized: String? = null
 
             if (htmlStringFlavor != null && contents.isDataFlavorSupported(htmlStringFlavor)) {
-                formattedText = try {
+                val raw = try {
                     contents.getTransferData(htmlStringFlavor) as? String
                 } catch (_: Exception) {
                     null
                 }
-                mimeType = "text/html"
+                if (!raw.isNullOrEmpty()) {
+                    formattedRaw = raw
+                    plainNormalized = htmlUnescape(stripHtmlToPlain(raw))
+                    mimeType = "text/html"
+                }
             } else if (htmlStreamFlavor != null && contents.isDataFlavorSupported(htmlStreamFlavor)) {
                 val stream = try {
                     contents.getTransferData(htmlStreamFlavor) as? InputStream
                 } catch (_: Exception) {
                     null
                 }
-                formattedText = stream?.bufferedReader()?.use { it.readText() }
-                mimeType = "text/html"
+                if (stream != null) {
+                    val bytes = stream.readBytes()
+                    val raw = String(bytes, Charsets.UTF_8)
+                    formattedRaw = raw
+                    plainNormalized = htmlUnescape(stripHtmlToPlain(raw))
+                    mimeType = "text/html"
+                }
             } else if (rtfStreamFlavor != null && contents.isDataFlavorSupported(rtfStreamFlavor)) {
                 val stream = try {
                     contents.getTransferData(rtfStreamFlavor) as? InputStream
                 } catch (_: Exception) {
                     null
                 }
-                formattedText = stream?.bufferedReader()?.use { it.readText() }
-                mimeType = "text/rtf"
+                if (stream != null) {
+                    // read raw bytes once
+                    val bytes = stream.readBytes()
+                    // try robust RTF parsing to plain
+                    val plain = rtfStreamToPlain(ByteArrayInputStream(bytes))
+                        ?: rtfFallbackToPlain(String(bytes, Charset.forName("windows-1251")))
+                    // store raw as ISO-8859-1 string to keep round-trip to bytes
+                    formattedRaw = String(bytes, Charsets.ISO_8859_1)
+                    plainNormalized = plain
+                    mimeType = "text/rtf"
+                }
             }
 
-            if (!formattedText.isNullOrEmpty() && mimeType != null) {
-                val plainNormalized = htmlUnescape(stripHtmlToPlain(formattedText))
+            if (!formattedRaw.isNullOrEmpty() && mimeType != null && !plainNormalized.isNullOrEmpty()) {
                 val hash = computeStringHash(plainNormalized, mimeType)
-                val existing = savedCopiedData[hash]
+                val existing = cacheGet(hash)
                 if (existing == null) {
                     val data = CopiedData.FormattedText(
-                        id = Uuid.random(),
-                        text = formattedText,
+                        id = hash,
+                        text = formattedRaw,
                         mimeType = mimeType,
-                        date = Clock.System.now()
+                        plainText = plainNormalized,
+                        dateTime = Clock.System.now(),
+                        applicationId = getFrontmostAppBundleId()
                     )
-                    // deduplicate by content: if there's already same text with different mime, reuse
-                    val found = savedCopiedData.values.firstOrNull {
-                        when (it) {
-                            is CopiedData.FormattedText -> htmlUnescape(stripHtmlToPlain(it.text)) == plainNormalized
-                            is CopiedData.Text -> it.text == plainNormalized
-                            else -> false
+                    val found = synchronized(savedCopiedDataLock) {
+                        savedCopiedData.values.firstOrNull {
+                            when (it) {
+                                is CopiedData.FormattedText -> it.plainText == plainNormalized
+                                is CopiedData.Text -> it.text == plainNormalized
+                                else -> false
+                            }
                         }
                     }
                     if (found != null) {
-                        // use existing instance and map new hash to it
-                        savedCopiedData[hash] = found
+                        cachePut(hash, found)
                         found as CopiedData.FormattedText
                     } else {
-                        savedCopiedData[hash] = data
+                        cachePut(hash, data)
                         data
                     }
                 } else {
@@ -321,26 +390,25 @@ class DesktopClipboardManager() : ClipboardManager {
             }
             if (text.isNullOrEmpty()) return null
             val hash = computeStringHash(text, "text/plain")
-            val existing = savedCopiedData[hash]
+            val existing = cacheGet(hash)
             if (existing == null) {
-                // prefer reusing a FormattedText that contains same plain text
-                val found = savedCopiedData.values.firstOrNull {
-                    (it is CopiedData.FormattedText && stripHtmlToPlain(it.text) == stripHtmlToPlain(
-                        text
-                    )) ||
-                            (it is CopiedData.Text && it.text == text)
+                val found = synchronized(savedCopiedDataLock) {
+                    savedCopiedData.values.firstOrNull {
+                        (it is CopiedData.FormattedText && it.plainText == text) || (it is CopiedData.Text && it.text == text)
+                    }
                 }
                 if (found != null) {
-                    savedCopiedData[hash] = found
+                    cachePut(hash, found)
                     return found as? CopiedData.Text
                 }
 
                 val textData = CopiedData.Text(
-                    id = Uuid.random(),
+                    id = hash,
                     text = text,
-                    date = Clock.System.now()
+                    dateTime = Clock.System.now(),
+                    applicationId = getFrontmostAppBundleId()
                 )
-                savedCopiedData[hash] = textData
+                cachePut(hash, textData)
                 textData
             } else {
                 existing as? CopiedData.Text
@@ -383,8 +451,6 @@ class DesktopClipboardManager() : ClipboardManager {
 }
 
 
-// --- helpers ---
-
 fun toBufferedImage(img: Image): BufferedImage {
     if (img is BufferedImage) return img
 
@@ -400,7 +466,8 @@ fun saveImage(image: Image, directory: File, fileName: String): File? {
         if (!directory.exists()) directory.mkdirs()
         val file = File(directory, fileName)
         val bufferedImage = toBufferedImage(image)
-        ImageIO.write(bufferedImage, "png", file) // Можно "jpg" или другой формат
+        ImageIO.write(bufferedImage, "png", file)
+        bufferedImage.flush()
         file
     } catch (e: Exception) {
         e.printStackTrace()
@@ -412,7 +479,7 @@ fun loadImageFromFile(filePath: String): Image? {
     return try {
         val file = File(filePath)
         if (!file.exists()) return null
-        ImageIO.read(file) // возвращает BufferedImage, совместим с Image
+        ImageIO.read(file)
     } catch (e: Exception) {
         e.printStackTrace()
         null
@@ -421,9 +488,9 @@ fun loadImageFromFile(filePath: String): Image? {
 
 /**
  * Compute deterministic int-hash for an image.
- * Uses SHA-256 over ARGB pixels and folds digest into Int.
+ * Downscales image, hashes ARGB, folds digest into Int.
  */
-fun imageHash(image: Image): Int {
+fun imageHashDownscaled(image: Image, maxSize: Int = 128): Int {
     val buffered = if (image is BufferedImage) image else {
         val w = image.getWidth(null)
         val h = image.getHeight(null)
@@ -435,10 +502,16 @@ fun imageHash(image: Image): Int {
         b
     }
 
-    // Получаем пиксели сразу в массив — быстрее и детерминированно
-    val pixels = IntArray(buffered.width * buffered.height)
-    buffered.getRGB(0, 0, buffered.width, buffered.height, pixels, 0, buffered.width)
+    val scale = maxSize.toDouble() / maxOf(buffered.width, buffered.height)
+    val newW = (buffered.width * scale).toInt().coerceAtLeast(1)
+    val newH = (buffered.height * scale).toInt().coerceAtLeast(1)
+    val resized = BufferedImage(newW, newH, BufferedImage.TYPE_INT_ARGB)
+    val g = resized.createGraphics()
+    g.drawImage(buffered, 0, 0, newW, newH, null)
+    g.dispose()
 
+    val pixels = IntArray(newW * newH)
+    resized.getRGB(0, 0, newW, newH, pixels, 0, newW)
     val digest = MessageDigest.getInstance("SHA-256")
     val buffer = ByteArray(4)
     for (rgb in pixels) {
@@ -448,6 +521,9 @@ fun imageHash(image: Image): Int {
         buffer[3] = rgb.toByte()
         digest.update(buffer)
     }
+
+    resized.flush()
+    buffered.flush()
 
     return foldDigestToInt(digest.digest())
 }
@@ -484,7 +560,6 @@ fun computeStringHash(text: String, mimeType: String): Int {
 }
 
 private fun foldDigestToInt(digest: ByteArray): Int {
-    // simple deterministic fold: multiply-accumulate over unsigned bytes
     var result = 0
     for (b in digest) {
         result = result * 31 + (b.toInt() and 0xFF)
@@ -493,11 +568,9 @@ private fun foldDigestToInt(digest: ByteArray): Int {
 }
 
 private fun stripHtmlToPlain(html: String): String {
-    // Lightweight fallback: remove tags and normalize whitespace. Enough for dedup checks.
     return html.replace(Regex("<[^>]*>"), "").replace(Regex("\\s+"), " ").trim()
 }
 
-/** Build a simple CF_HTML wrapper required by some Windows apps (StartHTML/EndHTML offsets). */
 @Suppress("DefaultLocale")
 private fun buildCfHtml(html: String): String {
     val utf8 = html.toByteArray(Charsets.UTF_8)
@@ -556,7 +629,7 @@ private fun htmlUnescape(input: String): String {
                     }
 
                     entity.equals("quot", true) -> {
-                        sb.append('"'); i = semicolon + 1; continue
+                        sb.append('\"'); i = semicolon + 1; continue
                     }
 
                     entity.equals("apos", true) -> {
@@ -565,20 +638,16 @@ private fun htmlUnescape(input: String): String {
 
                     entity.startsWith("#x") || entity.startsWith("#X") -> {
                         try {
-                            val code = entity.substring(2).toInt(16)
-                            sb.append(code.toChar())
-                            i = semicolon + 1
-                            continue
+                            val code = entity.substring(2).toInt(16); sb.append(code.toChar()); i =
+                                semicolon + 1; continue
                         } catch (_: Exception) {
                         }
                     }
 
                     entity.startsWith("#") -> {
                         try {
-                            val code = entity.substring(1).toInt()
-                            sb.append(code.toChar())
-                            i = semicolon + 1
-                            continue
+                            val code = entity.substring(1).toInt(); sb.append(code.toChar()); i =
+                                semicolon + 1; continue
                         } catch (_: Exception) {
                         }
                     }
@@ -591,22 +660,59 @@ private fun htmlUnescape(input: String): String {
     return sb.toString()
 }
 
+/** Parse RTF stream to plain text using Swing's RTFEditorKit. Returns null on failure. */
+private fun rtfStreamToPlain(stream: InputStream): String? {
+    return try {
+        val kit = RTFEditorKit()
+        val doc = kit.createDefaultDocument()
+        val bytes = stream.readBytes()
+        ByteArrayInputStream(bytes).use { bais -> kit.read(bais, doc, 0) }
+        try {
+            val text = doc.getText(0, doc.length)
+            text.replace(Regex("\\s+"), " ").trim()
+        } catch (ex: BadLocationException) {
+            null
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+/** Fallback RTF->plain: decode \uNNNN and hex escapes, remove tags. */
+private fun rtfFallbackToPlain(raw: String): String {
+    // decode unicode escapes \uNNNN
+    val withUnicode = Regex("""\\u(-?\d+)""").replace(raw) { m ->
+        try {
+            val code = m.groupValues[1].toInt()
+            val normalized = if (code < 0) code + 0x10000 else code
+            normalized.toChar().toString()
+        } catch (_: Exception) {
+            ""
+        }
+    }
+    // replace hex escapes \'hh using windows-1251
+    val replacedHex = Regex("""\\'([0-9a-fA-F]{2})""").replace(withUnicode) { m ->
+        val hex = m.groupValues[1]
+        val b = hex.toInt(16).toByte()
+        try {
+            String(byteArrayOf(b), Charset.forName("windows-1251"))
+        } catch (_: Exception) {
+            ""
+        }
+    }
+    var stripped = replacedHex.replace(Regex("""\\[a-zA-Z]+-?\d* ?"""), "")
+    stripped = stripped.replace(Regex("""[\{\}]"""), "")
+    return stripped.replace(Regex("\\s+"), " ").trim()
+}
+
 fun CopiedData.log(): String {
     return when (this) {
-        is CopiedData.File -> {
-            filePaths.fastJoinToString()
-        }
-
+        is CopiedData.File -> filePaths.fastJoinToString()
         is CopiedData.FormattedText -> {
-            "$mimeType: $text"
+            "$mimeType: ${plainText.take(200)}"
         }
 
-        is CopiedData.Image -> {
-            imagePath
-        }
-
-        is CopiedData.Text -> {
-            text
-        }
+        is CopiedData.Image -> imagePath
+        is CopiedData.Text -> "${text}, $dateTime, $id, $applicationId"
     }
 }

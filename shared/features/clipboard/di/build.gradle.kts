@@ -21,8 +21,11 @@ kotlin {
             implementation(libs.kotlinx.datetime)
 
             implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
 
             implementation(projects.shared.features.clipboard.data)
+            implementation(projects.shared.features.clipboard.db)
             api(projects.shared.features.clipboard.presentation)
             api(projects.shared.features.clipboard.domain)
         }

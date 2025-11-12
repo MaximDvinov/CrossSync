@@ -10,7 +10,7 @@ plugins {
 
 kotlin {
     android {
-        namespace = "com.cross.sync.clipboard.data"
+        namespace = "com.cross.sync.clipboard.presentation"
         compileSdk = 36
         minSdk = 23
         androidResources.enable = true
@@ -20,12 +20,12 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.ui)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
+            implementation(libs.runtime)
+            implementation(libs.ui)
+            implementation(libs.foundation)
+            implementation(libs.material3)
+            implementation(libs.components.resources)
+            implementation(libs.ui.tooling)
 
             implementation(libs.coil.compose)
             implementation(libs.htmlconverter)

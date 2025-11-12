@@ -1,5 +1,3 @@
-import org.jetbrains.compose.ExperimentalComposeLibrary
-
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.compiler)
@@ -7,12 +5,11 @@ plugins {
     alias(libs.plugins.android.kmp.library)
     alias(libs.plugins.compose.hot.reload)
     alias(libs.plugins.kotlinx.serialization)
-    alias(libs.plugins.sqlDelight)
 }
 
 kotlin {
     android {
-        namespace = "com.cross.sync"
+        namespace = "com.cross.sync.core.ui"
         compileSdk = 36
         minSdk = 23
         androidResources.enable = true
@@ -22,12 +19,12 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.ui)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.components.resources)
-            implementation(compose.components.uiToolingPreview)
+            implementation(libs.runtime)
+            implementation(libs.ui)
+            implementation(libs.foundation)
+            implementation(libs.material3)
+            implementation(libs.components.resources)
+            implementation(libs.ui.tooling.preview)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
@@ -44,36 +41,18 @@ kotlin {
         }
 
         commonTest.dependencies {
-            implementation(kotlin("test"))
-            @OptIn(ExperimentalComposeLibrary::class)
-            implementation(compose.uiTest)
-            implementation(libs.kotlinx.coroutines.test)
         }
 
         androidMain.dependencies {
-            implementation(compose.uiTooling)
+            implementation(libs.ui.tooling)
             implementation(libs.kotlinx.coroutines.android)
-            implementation(libs.ktor.client.okhttp)
-            implementation(libs.sqlDelight.driver.android)
         }
 
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
-            implementation(libs.ktor.client.okhttp)
-            implementation(libs.sqlDelight.driver.sqlite)
         }
 
     }
 
-}
-
-sqldelight {
-    databases {
-        create("MyDatabase") {
-            // Database configuration here.
-            // https://cashapp.github.io/sqldelight
-            packageName.set("com.cross.sync.db")
-        }
-    }
 }

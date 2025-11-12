@@ -4,6 +4,7 @@ import com.cross.sync.clipboard.data.ClipboardManager
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.SystemClipboardRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 class SystemClipboardRepositoryImpl(
     private val clipboardManager: ClipboardManager
@@ -16,7 +17,11 @@ class SystemClipboardRepositoryImpl(
         clipboardManager.getData()
     }
 
-    override fun observeData(): Flow<CopiedData?> {
+    override fun observeData(): StateFlow<CopiedData?> {
         return clipboardManager.observeData()
+    }
+
+    override fun initClipboardManager(): StateFlow<CopiedData?>{
+        return clipboardManager.init()
     }
 }

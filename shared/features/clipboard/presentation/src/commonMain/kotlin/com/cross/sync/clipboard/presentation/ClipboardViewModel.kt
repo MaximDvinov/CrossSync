@@ -21,13 +21,12 @@ class ClipboardViewModel(
     observeCopiedDataUseCase: ObserveCopiedDataUseCase,
     observeCurrentCopiedDataUseCase: ObserveCurrentCopiedDataUseCase,
 ) : ViewModel() {
-    val copiedDataListFlow = observeCopiedDataUseCase().map {
-        it.map { it.toStable() }.reversed()
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.Lazily,
-        initialValue = listOf()
-    )
+    val copiedDataListFlow =
+        observeCopiedDataUseCase().map { data -> data.map { it.toStable() } }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Lazily,
+            initialValue = listOf()
+        )
 
     val copiedDataFlow = observeCurrentCopiedDataUseCase().map { it?.toStable() }.stateIn(
         scope = viewModelScope,

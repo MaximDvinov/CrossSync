@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,7 +29,9 @@ import androidx.compose.ui.window.rememberWindowState
 import com.cross.sync.clipboard.data.ClipboardManager
 import com.cross.sync.clipboard.di.clipboardModule
 import com.cross.sync.clipboard.presentation.ClipboardScreen
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import com.kdroid.composetray.tray.api.Tray
+import com.kdroid.composetray.utils.IconRenderProperties
 import com.tulskiy.keymaster.common.Provider
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.Copy
@@ -44,6 +47,7 @@ import utils.calculateWindowPositionUnderMouse
 import utils.getFrontmostAppBundleId
 import utils.pasteClipboardMac
 import java.awt.Dimension
+import java.awt.Toolkit
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -51,17 +55,19 @@ import kotlin.uuid.ExperimentalUuidApi
 val desktopModule = module {
     singleOf(::DesktopClipboardManager) bind ClipboardManager::class
     single<Provider> { Provider.getCurrentProvider(true) }
-    singleOf(::GlobalHotkeyListener)
+    singleOf(::GlobalHotkeyManager)
 }
 
-@OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalTime::class,  ExperimentalComposeUiApi::class)
 fun main() = application {
     KoinApplication({
         modules(desktopModule, clipboardModule)
     }) {
-        val globalHotkeyListener = koinInject<GlobalHotkeyListener>()
-        val windowWidthDp = 400.dp
-        val windowHeightDp = 500.dp
+        val screenSize = remember { Toolkit.getDefaultToolkit().screenSize }
+        val density = LocalDensity.current
+        val globalHotkeyManager = koinInject<GlobalHotkeyManager>()
+        val windowWidthDp = 350.dp
+        val windowHeightDp = 400.dp
 
         var showWindow by remember { mutableStateOf(false) }
         var isTopBar by remember { mutableStateOf(false) }
@@ -80,20 +86,26 @@ fun main() = application {
                 showWindow = false
             }
 
-            globalHotkeyListener.registerHotkey("meta shift V") {
+            globalHotkeyManager.registerHotkey("meta shift V") {
                 showClipboardContentAction()
             }
 
-//            globalHotkeyListener.registerHotkey("ESCAPE") {
-//                hideWindowAction()
-//            }
+            val escapeHotkey = tryRegisterGlobalHotkey(onHotkey = hideWindowAction) { pressedKeys ->
+                pressedKeys.contains(NativeKeyEvent.VC_ESCAPE)
+            }
 
             onDispose {
-                globalHotkeyListener.stop()
+                globalHotkeyManager.stop()
+
+                if (escapeHotkey) {
+                    unregisterGlobalHotkeyIfRegistered()
+                }
             }
         }
 
-        val density = LocalDensity.current
+        var isWindowShowed by remember {
+            mutableStateOf(false)
+        }
 
         LaunchedEffect(showWindow) {
             if (showWindow) {
@@ -105,6 +117,8 @@ fun main() = application {
                         isTopBar
                     )
             }
+            delay(10)
+            isWindowShowed = showWindow
         }
 
         Tray(
@@ -123,7 +137,7 @@ fun main() = application {
         Window(
             title = "CrossSync",
             state = windowState,
-            visible = showWindow,
+            visible = isWindowShowed,
             alwaysOnTop = true,
             onCloseRequest = { showWindow = false },
             undecorated = true,
@@ -136,20 +150,23 @@ fun main() = application {
                 mutableStateOf(getHeapMemoryUsage())
             }
 
-            LaunchedEffect(Unit){
-                while (true){
+            LaunchedEffect(Unit) {
+                while (true) {
                     delay(1.seconds)
                     ram = getHeapMemoryUsage()
                 }
             }
-
 
             WindowDraggableArea {
                 Box {
                     ClipboardScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .border(0.1.dp, color = Color(0x3300253C), RoundedCornerShape(20.dp)),
+                            .border(
+                                0.1.dp,
+                                color = Color(0x3300253C),
+                                RoundedCornerShape(20.dp)
+                            ),
                         onClose = {
                             showWindow = false
                         },
@@ -165,11 +182,12 @@ fun main() = application {
                     BasicText(
                         text = ram,
                         style = TextStyle(fontSize = 8.sp),
-                        modifier = Modifier.alpha(0.6f).padding(10.dp).clip(RoundedCornerShape(4.dp))
-                            .background(Color.LightGray).padding(4.dp).align(Alignment.BottomEnd),
+                        modifier = Modifier.alpha(0.6f).padding(10.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.LightGray).padding(4.dp)
+                            .align(Alignment.BottomEnd),
                     )
                 }
-
             }
         }
     }
@@ -183,4 +201,3 @@ fun getHeapMemoryUsage(): String {
     val max = runtime.maxMemory() / 1024 / 1024
     return "RAM (MB): used: $used, free: $free, total: $total, max: $max"
 }
-
