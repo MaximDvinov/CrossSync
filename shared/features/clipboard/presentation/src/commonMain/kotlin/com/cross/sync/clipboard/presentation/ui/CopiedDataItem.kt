@@ -33,14 +33,20 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import be.digitalia.compose.htmlconverter.HtmlStyle
 import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
 import coil3.compose.AsyncImage
 import com.cross.sync.clipboard.presentation.CopiedDataStable
+import com.cross.sync.components.AppDropdownMenu
+import com.cross.sync.components.AppDropdownMenuItem
+import com.cross.sync.components.AppPopup
+import com.cross.sync.components.buildDropdownItems
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.More
 import com.cross.sync.utils.dayFormat
@@ -337,44 +343,35 @@ fun CopiedDataTags(
             )
         }
 
-        Box {
-            Row(
-                modifier = Modifier
-                    .clickable(onClick = { visibleMenu = true })
-                    .background(
-                        AppTheme.colors.surfaceVariant,
-                        AppTheme.shapes.round50percent
+        AppDropdownMenu(
+            expanded = visibleMenu,
+            anchor = { anchorModifier ->
+                Row(
+                    modifier = anchorModifier
+                        .clickable(onClick = { visibleMenu = true })
+                        .background(
+                            AppTheme.colors.surfaceVariant,
+                            AppTheme.shapes.round50percent
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .height(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = AppTheme.icons.More,
+                        contentDescription = null,
+                        tint = AppTheme.colors.onSurfaceVariant,
+                        modifier = Modifier.size(12.dp)
                     )
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                    .height(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = AppTheme.icons.More,
-                    contentDescription = null,
-                    tint = AppTheme.colors.onSurfaceVariant,
-                    modifier = Modifier.size(12.dp)
-                )
+                }
+            },
+            onDismissRequest = { visibleMenu = false },
+            items = buildDropdownItems {
+                append("Delete") {
+                    onDeleteClick()
+                }
             }
-
-
-            DropdownMenu(
-                expanded = visibleMenu,
-                onDismissRequest = {
-                    visibleMenu = false
-                },
-                offset = DpOffset(0.dp, 4.dp),
-                shape = AppTheme.shapes.round10,
-                containerColor = AppTheme.colors.surfaceVariant
-            ) {
-                DropdownMenuItem(
-                    text = { BasicText(text = "Delete") },
-                    onClick = onDeleteClick,
-                    contentPadding = PaddingValues(horizontal = 10.dp)
-                )
-            }
-
-        }
+        )
 
     }
 }

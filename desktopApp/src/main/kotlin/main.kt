@@ -90,7 +90,6 @@ fun main() = application {
         val windowState = rememberWindowState(width = windowWidthDp, height = windowHeightDp)
         var prevAppId by remember { mutableStateOf<String?>(null) }
 
-
         DisposableEffect(Unit) {
             val showClipboardContentAction = {
                 isTopBar = false
@@ -195,14 +194,14 @@ fun main() = application {
                         }
                     }
 
-                    BasicText(
-                        text = ram,
-                        style = TextStyle(fontSize = 8.sp),
-                        modifier = Modifier.alpha(0.6f).padding(10.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color.LightGray).padding(4.dp)
-                            .align(Alignment.BottomEnd),
-                    )
+//                    BasicText(
+//                        text = ram,
+//                        style = TextStyle(fontSize = 8.sp),
+//                        modifier = Modifier.alpha(0.6f).padding(10.dp)
+//                            .clip(RoundedCornerShape(4.dp))
+//                            .background(Color.LightGray).padding(4.dp)
+//                            .align(Alignment.BottomEnd),
+//                    )
                 }
             }
         }

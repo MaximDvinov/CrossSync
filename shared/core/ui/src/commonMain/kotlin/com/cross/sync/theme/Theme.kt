@@ -60,6 +60,10 @@ object AppTheme {
     val icons: AppIcons
         @Composable
         get() = LocalAppIcons.current
+
+    val shadows: AppShadow
+        @Composable
+        get() = AppShadow()
 }
 
 

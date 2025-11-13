@@ -3,14 +3,13 @@ package com.cross.sync.clipboard.db
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy.Companion.IGNORE
-import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.Query
 import com.cross.sync.clipboard.db.entities.CopiedDataEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ClipboardDao {
-    @Insert(onConflict = REPLACE)
+    @Insert(onConflict = IGNORE)
     suspend fun insert(copiedData: CopiedDataEntity)
 
     @Query("SELECT * FROM copied_data WHERE id = :id")

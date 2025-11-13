@@ -1,6 +1,6 @@
 # 🚀 CrossSync — Unified Clipboard Across Devices
 
-[![🚧 Work in Progress](https://img.shields.io/badge/status-WIP-orange)](https://github.com/MaximDvinov/CrossSync) [![🖥 macOS App](https://img.shields.io/badge/platform-macOS-blue)](https://github.com/MaximDvinov/CrossSync) [![☕ Kotlin + Compose](https://img.shields.io/badge/tech-Kotlin%20%2B%20Compose-purple)](https://github.com/MaximDvinov/CrossSync)
+[![🚧 Work in Progress](https://img.shields.io/badge/status-WIP-orange)](https://github.com/MaximDvinov/CrossSync) [![🖥 macOS App](https://img.shields.io/badge/platform-macOS-blue)](https://github.com/MaximDvinov/CrossSync) [![🖥 macOS App](https://img.shields.io/badge/platform-android-green)](https://github.com/MaximDvinov/CrossSync) [![☕ Kotlin + Compose](https://img.shields.io/badge/tech-Kotlin%20%2B%20Compose-purple)](https://github.com/MaximDvinov/CrossSync)
 
 **CrossSync** is a cross-platform application designed to synchronize the clipboard between computers and mobile devices within a local network.  
 The program provides fast and secure sharing of text, links, images, and files without relying on cloud services.  
@@ -52,6 +52,6 @@ Support for **formatted HTML text** is included, preserving the original formatt
 ---
 
 ## 👨‍💻 Author
-Development by **[Maxim](https://github.com/)**  
+Development by **[Maxim](https://github.com/MaximDvinov)**  
 📄 License — MIT  
 💬 The project is actively under development

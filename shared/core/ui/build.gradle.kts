@@ -38,6 +38,7 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.multiplatformSettings)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.kotlinx.collections.immutable)
         }
 
         commonTest.dependencies {
