@@ -1,14 +1,57 @@
-# CrossSync
+# 🚀 CrossSync — Unified Clipboard Across Devices
 
-### Android
-To run the application on android device/emulator:  
- - open project in Android Studio and run imported android run configuration  
+[![🚧 Work in Progress](https://img.shields.io/badge/status-WIP-orange)](https://github.com/MaximDvinov/CrossSync) [![🖥 macOS App](https://img.shields.io/badge/platform-macOS-blue)](https://github.com/MaximDvinov/CrossSync) [![☕ Kotlin + Compose](https://img.shields.io/badge/tech-Kotlin%20%2B%20Compose-purple)](https://github.com/MaximDvinov/CrossSync)
 
-To build the application bundle:  
- - run `./gradlew :androidApp:assembleDebug`  
- - find `.apk` file in `androidApp/build/outputs/apk/debug/androidApp-debug.apk`  
+**CrossSync** is a cross-platform application designed to synchronize the clipboard between computers and mobile devices within a local network.  
+The program provides fast and secure sharing of text, links, images, and files without relying on cloud services.  
+Support for **formatted HTML text** is included, preserving the original formatting.
 
-### Desktop
-Run the desktop application: `./gradlew :desktopApp:run`  
-Run the desktop **hot reload** application: `./gradlew :desktopApp:hotRun --auto`  
+---
 
+## 💡 Current Status
+- 📋 macOS version implemented
+- 💾 Clipboard data is saved in a local history
+- 🖼 Supports **images**, **files**, and **HTML text**
+- 🪟 A window is available, accessible from the system tray or by pressing **Ctrl + Command + V**
+- 👆 Items from history can be selected and reinserted into the active application with a double-click
+
+---
+
+## 🧭 Planned Development
+- 📱 Android client implementation
+- 🪟 Support for **Windows** and **Linux**
+- 🔄 Full clipboard synchronization between devices over the local network
+- 🧠 Extended history features: search, filters, pinning items
+- ⚙️ Interface and hotkey customization
+- 🔒 Enhanced privacy and access control options
+
+---
+
+## 📸 Screenshots
+![image description](docs/mac_clipboard.png)
+
+---
+
+## 📦 Download and Installation
+🧱 The application is currently under development.
+- macOS: *(link to .dmg will be added)*
+- Android: *(in development)*
+
+---
+
+## ✅ ToDo
+- [x] Clipboard for macOS
+- [ ] Implement synchronization over the local network
+- [ ] Develop Android client
+- [ ] Support for Windows and Linux
+- [ ] Advanced filters and search in clipboard history
+- [ ] Window and hotkey customization
+- [ ] User interface and experience improvements
+- [ ] Privacy settings and data storage management
+
+---
+
+## 👨‍💻 Author
+Development by **[Maxim](https://github.com/)**  
+📄 License — MIT  
+💬 The project is actively under development
