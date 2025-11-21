@@ -33,36 +33,6 @@ class GlobalHotkeyManager(
     }
 }
 
-class GlobalHotkeyListener(
-    private val onHotkey: () -> Unit,
-    private val pattern: (pressedKeys: Set<Int>) -> Boolean,
-) : NativeKeyListener {
-
-    private val pressedKeys = mutableSetOf<Int>()
-
-    override fun nativeKeyTyped(e: NativeKeyEvent?) { /* no-op */
-    }
-
-    override fun nativeKeyPressed(e: NativeKeyEvent) {
-        pressedKeys.add(e.keyCode)
-        if (pattern(pressedKeys)) {
-            onHotkey()
-        }
-    }
-
-    override fun nativeKeyReleased(e: NativeKeyEvent) {
-        pressedKeys.remove(e.keyCode)
-    }
-}
-
-fun unregisterGlobalHotkeyIfRegistered() {
-    try {
-        if (GlobalScreen.isNativeHookRegistered()) {
-            GlobalScreen.unregisterNativeHook()
-        }
-    } catch (_: Exception) {
-    }
-}
 
 fun tryRegisterGlobalHotkey(
     onHotkey: () -> Unit,
@@ -118,5 +88,14 @@ fun tryRegisterGlobalHotkey(
             )
         }
         false
+    }
+}
+
+fun unregisterGlobalHotkeyIfRegistered() {
+    try {
+        if (GlobalScreen.isNativeHookRegistered()) {
+            GlobalScreen.unregisterNativeHook()
+        }
+    } catch (_: Exception) {
     }
 }

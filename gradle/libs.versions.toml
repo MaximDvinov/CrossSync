@@ -3,7 +3,7 @@
 agp = "8.12.3"
 ddPlist = "1.28"
 kotlin = "2.2.21"
-compose-hot-reload = "1.0.0-rc02"
+compose-hot-reload = "1.0.0-rc03"
 
 # Compose
 compose = "1.10.0-beta01" # BOM for JetBrains Compose libraries
@@ -14,7 +14,7 @@ htmlconverter = "1.1.0"
 material3 = "1.9.0"
 
 # AndroidX
-androidx-lifecycle = "2.9.5"
+androidx-lifecycle = "2.9.6"
 
 # Kotlin & Coroutines
 kotlinx-coroutines = "1.10.2"
@@ -75,7 +75,7 @@ kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collec
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
-# Networking - Ktor
+# Ktor Client
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-serialization = { module = "io.ktor:ktor-client-serialization", version.ref = "ktor" }
@@ -86,6 +86,13 @@ ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "kto
 ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
 ktor-client-curl = { module = "io.ktor:ktor-client-curl", version.ref = "ktor" }
 ktor-client-winhttp = { module = "io.ktor:ktor-client-winhttp", version.ref = "ktor" }
+
+# Ktor Server
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.ref = "ktor" }
+ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
+ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging", version.ref = "ktor" }
 
 # Dependency Injection - Koin
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }

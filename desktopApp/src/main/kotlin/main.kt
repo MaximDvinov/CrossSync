@@ -1,9 +1,7 @@
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -12,17 +10,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalViewConfiguration
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -31,12 +24,15 @@ import com.cross.sync.clipboard.di.clipboardModule
 import com.cross.sync.clipboard.domain.entity.Application
 import com.cross.sync.clipboard.domain.usecase.SaveApplicationsUseCase
 import com.cross.sync.clipboard.presentation.ClipboardScreen
+import com.cross.sync.syncing.di.syncingModule
+import com.cross.sync.syncing.domain.usecases.StartSyncUseCase
+import com.cross.sync.theme.AppIcons
+import com.cross.sync.theme.AppTheme
+import com.cross.sync.theme.icons.CrossSync
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import com.kdroid.composetray.tray.api.Tray
 import com.kdroid.composetray.utils.IconRenderProperties
 import com.tulskiy.keymaster.common.Provider
-import compose.icons.FeatherIcons
-import compose.icons.feathericons.Copy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.KoinApplication
@@ -50,10 +46,8 @@ import utils.getFrontmostAppBundleId
 import utils.getInstalledApplications
 import utils.pasteClipboardMac
 import java.awt.Dimension
-import java.awt.Toolkit
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
-import kotlin.uuid.ExperimentalUuidApi
 
 val desktopModule = module {
     singleOf(::DesktopClipboardManager) bind ClipboardManager::class
@@ -64,12 +58,13 @@ val desktopModule = module {
 @OptIn(ExperimentalTime::class, ExperimentalComposeUiApi::class)
 fun main() = application {
     KoinApplication({
-        modules(desktopModule, clipboardModule)
+        modules(desktopModule, syncingModule, clipboardModule)
     }) {
-        val screenSize = remember { Toolkit.getDefaultToolkit().screenSize }
-        val density = LocalDensity.current
         val globalHotkeyManager = koinInject<GlobalHotkeyManager>()
-        val applicationsUseCase = koinInject<SaveApplicationsUseCase>()
+        val saveApplicationsUseCase = koinInject<SaveApplicationsUseCase>()
+        val startSyncUseCase = koinInject<StartSyncUseCase>()
+
+        val density = LocalDensity.current
         val windowWidthDp = 350.dp
         val windowHeightDp = 500.dp
 
@@ -81,8 +76,12 @@ fun main() = application {
                     null,
                     ""
                 )
-                applicationsUseCase(applications)
+                saveApplicationsUseCase(applications)
             }
+        }
+
+        LaunchedEffect(Unit) {
+            startSyncUseCase()
         }
 
         var showWindow by remember { mutableStateOf(false) }
@@ -137,7 +136,7 @@ fun main() = application {
         }
 
         Tray(
-            icon = FeatherIcons.Copy,
+            icon = AppIcons().CrossSync,
             tooltip = "Open app",
             tint = null,
             primaryAction = {
@@ -145,6 +144,26 @@ fun main() = application {
                 showWindow = !showWindow;
                 prevAppId = getFrontmostAppBundleId()
             },
+            menuContent = {
+//                Item(
+//                    label = "Open app",
+//                    onClick = {
+//
+//                    }
+//                )
+//                Item(
+//                    label = "Setting",
+//                    onClick = {
+//
+//                    }
+//                )
+                Item(
+                    label = "Close",
+                    onClick = {
+                        exitApplication()
+                    }
+                )
+            }
         )
 
         val coroutineScope = rememberCoroutineScope()
@@ -173,26 +192,29 @@ fun main() = application {
             }
 
             WindowDraggableArea {
-                Box {
-                    ClipboardScreen(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .border(
-                                0.1.dp,
-                                color = Color(0x3300253C),
-                                RoundedCornerShape(20.dp)
-                            ),
-                        onClose = {
-                            showWindow = false
-                        },
-                        onOpenFullApp = {},
-                    ) {
-                        coroutineScope.launch {
-                            showWindow = false
-                            prevAppId?.let { bringAppToFront(it) }
-                            pasteClipboardMac()
+                AppTheme{
+                    Box {
+                        ClipboardScreen(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .border(
+                                    0.1.dp,
+                                    color = Color(0x3300253C),
+                                    RoundedCornerShape(20.dp)
+                                )
+                                .background(AppTheme.colors.background)
+                            ,
+                            onClose = {
+                                showWindow = false
+                            },
+                            onOpenFullApp = {},
+                        ) {
+                            coroutineScope.launch {
+                                showWindow = false
+                                prevAppId?.let { bringAppToFront(it) }
+                                pasteClipboardMac()
+                            }
                         }
-                    }
 
 //                    BasicText(
 //                        text = ram,
@@ -202,7 +224,9 @@ fun main() = application {
 //                            .background(Color.LightGray).padding(4.dp)
 //                            .align(Alignment.BottomEnd),
 //                    )
+                    }
                 }
+
             }
         }
     }

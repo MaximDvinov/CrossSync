@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy.Companion.IGNORE
 import androidx.room.Query
 import com.cross.sync.clipboard.db.entities.CopiedDataEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 @Dao
 interface ClipboardDao {

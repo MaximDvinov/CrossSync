@@ -30,7 +30,6 @@ class ClipboardViewModel(
         observeCopiedDataUseCase().combine(getApplicationsUseCase()) { copiedData, applications ->
             copiedData.map {
                 val app = applications.find { app -> app.id == it.applicationId }
-                println(app)
                 it.toStable(app)
             }
         }.stateIn(

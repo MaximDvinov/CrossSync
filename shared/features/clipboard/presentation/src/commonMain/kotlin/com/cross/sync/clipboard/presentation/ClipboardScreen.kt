@@ -26,10 +26,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.PlatformParagraphStyle
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.cross.sync.clipboard.presentation.ui.CopiedDataItem
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.Close
+import com.cross.sync.theme.icons.CrossSync
 import org.koin.compose.koinInject
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -52,16 +58,27 @@ fun ClipboardScreen(
 
     AppTheme {
         Column(
-            modifier = modifier.fillMaxSize().background(AppTheme.colors.background)
+            modifier = modifier.fillMaxSize()
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+
+                Icon(
+                    imageVector = AppTheme.icons.CrossSync,
+                    contentDescription = null,
+                    tint = AppTheme.colors.primary,
+                    modifier = Modifier.size(30.dp)
+                )
+
                 BasicText(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).padding(horizontal = 5.dp),
                     text = "CrossSync",
-                    style = AppTheme.typography.semiBold20.copy(AppTheme.colors.primary)
+                    style = AppTheme.typography.semiBold20.copy(
+                        color = AppTheme.colors.primary,
+                        textAlign = TextAlign.Center,
+                    )
                 )
 
                 Box(

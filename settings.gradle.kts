@@ -35,11 +35,18 @@ plugins {
 }
 
 include(":shared:core:ui")
+
 include(":shared:features:clipboard:domain")
 include(":shared:features:clipboard:data")
 include(":shared:features:clipboard:di")
 include(":shared:features:clipboard:db")
 include(":shared:features:clipboard:presentation")
+
+include(":shared:features:syncing:network")
+include(":shared:features:syncing:domain")
+include(":shared:features:syncing:data")
+include(":shared:features:syncing:di")
+include(":shared:features:syncing:presentation")
 
 
 include(":androidApp")
