@@ -16,4 +16,8 @@ actual val databaseModule: Module
         single<ApplicationDao> {
             get<AppDatabase>().getApplicationDao()
         }
+
+        single<CategoryDao> {
+            get<AppDatabase>().getCategoryDao()
+        }
     }

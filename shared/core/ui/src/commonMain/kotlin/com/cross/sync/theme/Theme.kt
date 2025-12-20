@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import com.cross.sync.theme.icons.AppIcons
+import com.cross.sync.theme.icons.LocalAppIcons
 
 
 internal val LocalThemeIsDark = compositionLocalOf { mutableStateOf(true) }

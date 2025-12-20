@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalTime::class)
 
-package com.cross.sync.clipboard.presentation
+package com.cross.sync.clipboard.presentation.model
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.graphics.ImageBitmap
@@ -16,14 +16,14 @@ import kotlin.time.Instant
 
 @Stable
 sealed class CopiedDataStable(
-    open val id: Int,
+    open val id: Long,
     val date: LocalDateTime,
     val applicationId: String?,
     val application: Application? = null,
 ) {
     @Stable
     class Text(
-        id: Int,
+        id: Long,
         val text: String,
         date: Instant = Clock.System.now(),
         applicationId: String?,
@@ -47,7 +47,7 @@ sealed class CopiedDataStable(
 
     @Stable
     class FormattedText(
-        id: Int,
+        id: Long,
         val text: String,
         val plainText: String,
         val mimeType: String, // "text/html" или "text/rtf"
@@ -72,7 +72,7 @@ sealed class CopiedDataStable(
 
     @Stable
     class Image(
-        id: Int,
+        id: Long,
         val imagePath: String,
         date: Instant = Clock.System.now(),
         applicationId: String?,
@@ -94,7 +94,7 @@ sealed class CopiedDataStable(
 
     @Stable
     class File(
-        id: Int,
+        id: Long,
         val filePaths: List<String>,
         date: Instant = Clock.System.now(),
         applicationId: String?,

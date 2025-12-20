@@ -3,9 +3,12 @@
 package com.cross.sync.clipboard.data.mappers
 
 import com.cross.sync.clipboard.db.entities.ApplicationEntity
+import com.cross.sync.clipboard.db.entities.CategoryEntity
+import com.cross.sync.clipboard.db.entities.CategoryWithCopiedData
 import com.cross.sync.clipboard.db.entities.CopiedDataEntity
 import com.cross.sync.clipboard.db.entities.CopiedDataType
 import com.cross.sync.clipboard.domain.entity.Application
+import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -14,7 +17,7 @@ fun CopiedData.toEntity(): CopiedDataEntity {
     return when (this) {
         is CopiedData.File ->
             CopiedDataEntity(
-                id = id,
+                copiedDataId = id,
                 type = CopiedDataType.FILE,
                 dateTime = dateTime.toEpochMilliseconds(),
                 filePaths = filePaths,
@@ -25,7 +28,7 @@ fun CopiedData.toEntity(): CopiedDataEntity {
 
         is CopiedData.FormattedText ->
             CopiedDataEntity(
-                id = id,
+                copiedDataId = id,
                 type = CopiedDataType.FORMATTED_TEXT,
                 dateTime = dateTime.toEpochMilliseconds(),
                 content = text,
@@ -36,7 +39,7 @@ fun CopiedData.toEntity(): CopiedDataEntity {
 
 
         is CopiedData.Image -> CopiedDataEntity(
-            id = id,
+            copiedDataId = id,
             type = CopiedDataType.IMAGE,
             dateTime = dateTime.toEpochMilliseconds(),
             content = imagePath,
@@ -44,7 +47,7 @@ fun CopiedData.toEntity(): CopiedDataEntity {
         )
 
         is CopiedData.Text -> CopiedDataEntity(
-            id = id,
+            copiedDataId = id,
             type = CopiedDataType.TEXT,
             dateTime = dateTime.toEpochMilliseconds(),
             content = text,
@@ -56,28 +59,28 @@ fun CopiedData.toEntity(): CopiedDataEntity {
 fun CopiedDataEntity.toDomain(): CopiedData {
     return when (type) {
         CopiedDataType.TEXT -> CopiedData.Text(
-            id = id,
+            id = copiedDataId,
             dateTime = Instant.fromEpochMilliseconds(dateTime),
             applicationId = applicationId,
             text = content
         )
 
         CopiedDataType.IMAGE -> CopiedData.Image(
-            id = id,
+            id = copiedDataId,
             imagePath = content,
             dateTime = Instant.fromEpochMilliseconds(dateTime),
             applicationId = applicationId
         )
 
         CopiedDataType.FILE -> CopiedData.File(
-            id = id,
+            id = copiedDataId,
             filePaths = filePaths ?: listOf(),
             dateTime = Instant.fromEpochMilliseconds(dateTime),
             applicationId = applicationId
         )
 
         CopiedDataType.FORMATTED_TEXT -> CopiedData.FormattedText(
-            id = id,
+            id = copiedDataId,
             text = content,
             mimeType = mimeType ?: "",
             plainText = plainText ?: "",
@@ -93,4 +96,17 @@ fun ApplicationEntity.toDomain() = Application(
 
 fun Application.toEntity() = ApplicationEntity(
     id = id, name = name, icon = icon, path = path
+)
+
+fun CategoryWithCopiedData.toDomain() = Category(
+    id = category.categoryId,
+    name = category.name,
+)
+
+fun Category.toEntity() = CategoryEntity(
+    categoryId = id, name = name
+)
+
+fun CategoryEntity.toDomain() = Category(
+    id = categoryId, name = name
 )

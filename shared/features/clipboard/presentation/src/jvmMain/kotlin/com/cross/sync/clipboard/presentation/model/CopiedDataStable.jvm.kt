@@ -1,4 +1,4 @@
-package com.cross.sync.clipboard.presentation
+package com.cross.sync.clipboard.presentation.model
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap

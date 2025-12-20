@@ -1,5 +1,3 @@
-import org.jetbrains.compose.ExperimentalComposeLibrary
-
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.compiler)
@@ -43,7 +41,6 @@ kotlin {
         }
 
         androidMain.dependencies {
-            implementation(compose.uiTooling)
             implementation(libs.kotlinx.coroutines.android)
         }
 

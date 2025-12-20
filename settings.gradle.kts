@@ -30,7 +30,6 @@ dependencyResolutionManagement {
     }
 }
 plugins {
-    //https://github.com/JetBrains/compose-hot-reload?tab=readme-ov-file#set-up-automatic-provisioning-of-the-jetbrains-runtime-jbr-via-gradle
     id("org.gradle.toolchains.foojay-resolver-convention").version("1.0.0")
 }
 
@@ -47,6 +46,12 @@ include(":shared:features:syncing:domain")
 include(":shared:features:syncing:data")
 include(":shared:features:syncing:di")
 include(":shared:features:syncing:presentation")
+
+include(":shared:features:setting:presentation")
+include(":shared:features:setting:domain")
+include(":shared:features:setting:di")
+
+include(":shared:features:home")
 
 
 include(":androidApp")

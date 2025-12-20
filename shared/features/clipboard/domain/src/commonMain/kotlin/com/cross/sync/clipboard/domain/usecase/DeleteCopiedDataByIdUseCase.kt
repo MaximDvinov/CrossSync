@@ -9,7 +9,7 @@ import kotlin.uuid.ExperimentalUuidApi
 class DeleteCopiedDataByIdUseCase(
     private val localClipboardRepository: LocalClipboardRepository,
 ) {
-    suspend operator fun invoke(id: Int) {
+    suspend operator fun invoke(id: Long) {
         localClipboardRepository.deleteCopiedDataById(id)
     }
 }

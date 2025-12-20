@@ -40,17 +40,17 @@ class DesktopClipboardManager() : ClipboardManager {
 
     // Synchronized LRU cache for clipboard data
     private val savedCopiedDataLock = Any()
-    private val savedCopiedData = object : LinkedHashMap<Int, CopiedData>(256, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, CopiedData>?): Boolean {
+    private val savedCopiedData = object : LinkedHashMap<Long, CopiedData>(256, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, CopiedData>?): Boolean {
             return size > 256
         }
     }
 
-    private fun cachePut(hash: Int, value: CopiedData) {
+    private fun cachePut(hash: Long, value: CopiedData) {
         synchronized(savedCopiedDataLock) { savedCopiedData[hash] = value }
     }
 
-    private fun cacheGet(hash: Int): CopiedData? =
+    private fun cacheGet(hash: Long): CopiedData? =
         synchronized(savedCopiedDataLock) { savedCopiedData[hash] }
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
@@ -219,7 +219,7 @@ class DesktopClipboardManager() : ClipboardManager {
                 }
                 if (!list.isNullOrEmpty()) {
                     val paths = list.map { it.absolutePath }
-                    val hash = computeFilesHash(paths, list)
+                    val hash = computeFilesHash(paths, list).toLong()
                     val existing = cacheGet(hash)
                     if (existing == null) {
                         val fileData = CopiedData.File(
@@ -249,7 +249,7 @@ class DesktopClipboardManager() : ClipboardManager {
                     null
                 }
                 if (image != null) {
-                    val hash = imageHashDownscaled(image, 128)
+                    val hash = imageHashDownscaled(image, 128).toLong()
                     if (cacheGet(hash) == null) {
                         val cacheDir = File(System.getProperty("user.home"), ".crosssync/images")
                         val fileName = "${hash}.png"
@@ -341,7 +341,7 @@ class DesktopClipboardManager() : ClipboardManager {
             }
 
             if (!formattedRaw.isNullOrEmpty() && mimeType != null && !plainNormalized.isNullOrEmpty()) {
-                val hash = computeStringHash(plainNormalized, mimeType)
+                val hash = computeStringHash(plainNormalized, mimeType).toLong()
                 val existing = cacheGet(hash)
                 if (existing == null) {
                     val data = CopiedData.FormattedText(
@@ -385,7 +385,7 @@ class DesktopClipboardManager() : ClipboardManager {
                 null
             }
             if (text.isNullOrEmpty()) return null
-            val hash = computeStringHash(text, "text/plain")
+            val hash = computeStringHash(text, "text/plain").toLong()
             val existing = cacheGet(hash)
             if (existing == null) {
                 val found = synchronized(savedCopiedDataLock) {

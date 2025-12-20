@@ -9,12 +9,12 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 sealed class CopiedData(
-    val id: Int,
+    val id: Long,
     val dateTime: Instant,
     val applicationId: String?,
 ) {
     class Text(
-        id: Int,
+        id: Long,
         val text: String,
         dateTime: Instant = Clock.System.now(),
         applicationId: String?,
@@ -28,7 +28,7 @@ sealed class CopiedData(
     }
 
     class Image(
-        id: Int,
+        id: Long,
         val imagePath: String,
         dateTime: Instant = Clock.System.now(),
         applicationId: String?,
@@ -42,7 +42,7 @@ sealed class CopiedData(
     }
 
     class File(
-        id: Int,
+        id: Long,
         val filePaths: List<String>,
         dateTime: Instant = Clock.System.now(),
         applicationId: String?,
@@ -57,7 +57,7 @@ sealed class CopiedData(
     }
 
     class FormattedText(
-        id: Int,
+        id: Long,
         val text: String,
         val mimeType: String,
         val plainText: String,

@@ -3,10 +3,10 @@ package com.cross.sync.clipboard.presentation.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,26 +24,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import be.digitalia.compose.htmlconverter.HtmlStyle
 import be.digitalia.compose.htmlconverter.htmlToAnnotatedString
 import coil3.compose.AsyncImage
-import com.cross.sync.clipboard.presentation.CopiedDataStable
+import com.cross.sync.clipboard.presentation.model.CopiedDataStable
 import com.cross.sync.components.AppDropdownMenu
-import com.cross.sync.components.AppDropdownMenuItem
-import com.cross.sync.components.AppPopup
 import com.cross.sync.components.buildDropdownItems
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.More
@@ -56,9 +46,11 @@ import com.cross.sync.utils.dayFormat
 fun CopiedDataItem(
     modifier: Modifier = Modifier,
     copiedData: CopiedDataStable,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    onDeleteClick: () -> Unit,
+    isSelected: Boolean = false,
+    onClick: () -> Unit = {},
+    onDoubleClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
+    isShowTag: Boolean = true,
 ) {
     when (copiedData) {
         is CopiedDataStable.Text -> TextCopiedDataItem(
@@ -66,7 +58,9 @@ fun CopiedDataItem(
             copiedData = copiedData,
             isCurrent = isSelected,
             onClick = onClick,
-            onDeleteClick = onDeleteClick
+            onDoubleClick = onDoubleClick,
+            onDeleteClick = onDeleteClick,
+            isShowTag = isShowTag
         )
 
         is CopiedDataStable.FormattedText -> FormatedCopiedDataItem(
@@ -74,7 +68,10 @@ fun CopiedDataItem(
             copiedData = copiedData,
             isCurrent = isSelected,
             onClick = onClick,
-            onDeleteClick = onDeleteClick
+            onDoubleClick = onDoubleClick,
+            onDeleteClick = onDeleteClick,
+            isShowTag = isShowTag
+
         )
 
         is CopiedDataStable.Image -> ImageCopiedDataItem(
@@ -82,7 +79,10 @@ fun CopiedDataItem(
             copiedData = copiedData,
             isCurrent = isSelected,
             onClick = onClick,
-            onDeleteClick = onDeleteClick
+            onDoubleClick = onDoubleClick,
+            onDeleteClick = onDeleteClick,
+            isShowTag = isShowTag
+
         )
 
         is CopiedDataStable.File -> FilesCopiedDataItem(
@@ -90,7 +90,9 @@ fun CopiedDataItem(
             copiedData = copiedData,
             isCurrent = isSelected,
             onClick = onClick,
-            onDeleteClick = onDeleteClick
+            onDoubleClick = onDoubleClick,
+            onDeleteClick = onDeleteClick,
+            isShowTag = isShowTag
         )
     }
 }
@@ -101,7 +103,9 @@ fun ImageCopiedDataItem(
     copiedData: CopiedDataStable.Image,
     isCurrent: Boolean,
     onClick: () -> Unit,
+    onDoubleClick: () -> Unit = {},
     onDeleteClick: () -> Unit,
+    isShowTag: Boolean,
 ) {
     val selectableModifier = if (isCurrent) {
         modifier.border(2.dp, AppTheme.colors.primary, AppTheme.shapes.round10)
@@ -110,7 +114,12 @@ fun ImageCopiedDataItem(
     }
     Column {
         Box(
-            modifier = Modifier.clickable(onClick = onClick).then(selectableModifier)
+            modifier = Modifier
+                .combinedClickable(
+                    onClick = onClick,
+                    onDoubleClick = onDoubleClick
+                )
+                .then(selectableModifier)
                 .clip(AppTheme.shapes.round10)
                 .background(AppTheme.colors.surface),
             contentAlignment = Alignment.BottomEnd
@@ -124,11 +133,14 @@ fun ImageCopiedDataItem(
             )
         }
 
-        CopiedDataTags(
-            modifier,
-            copiedData = copiedData,
-            onDeleteClick
-        )
+        if (isShowTag) {
+            CopiedDataTags(
+                Modifier,
+                copiedData = copiedData,
+                onDeleteClick
+            )
+        }
+
     }
 
 }
@@ -140,7 +152,9 @@ fun TextCopiedDataItem(
     copiedData: CopiedDataStable.Text,
     isCurrent: Boolean,
     onClick: () -> Unit,
+    onDoubleClick: () -> Unit = {},
     onDeleteClick: () -> Unit,
+    isShowTag: Boolean,
 ) {
 
     val selectableModifier = if (isCurrent) {
@@ -150,7 +164,11 @@ fun TextCopiedDataItem(
     }
     Column {
         Column(
-            modifier = Modifier.clickable(onClick = onClick).then(selectableModifier)
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onDoubleClick = onDoubleClick
+            )
+                .then(selectableModifier)
                 .clip(AppTheme.shapes.round10)
                 .background(AppTheme.colors.surface)
                 .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -164,10 +182,13 @@ fun TextCopiedDataItem(
             )
         }
 
-        CopiedDataTags(
-            copiedData = copiedData,
-            onDeleteClick = onDeleteClick
-        )
+        if (isShowTag) {
+            CopiedDataTags(
+                Modifier,
+                copiedData = copiedData,
+                onDeleteClick
+            )
+        }
     }
 
 }
@@ -179,7 +200,9 @@ fun FormatedCopiedDataItem(
     copiedData: CopiedDataStable.FormattedText,
     isCurrent: Boolean,
     onClick: () -> Unit,
+    onDoubleClick: () -> Unit = {},
     onDeleteClick: () -> Unit,
+    isShowTag: Boolean,
 ) {
     val selectableModifier = if (isCurrent) {
         modifier.border(2.dp, AppTheme.colors.primary, AppTheme.shapes.round10)
@@ -190,7 +213,11 @@ fun FormatedCopiedDataItem(
     Column {
         Column(
             modifier = Modifier
-                .clickable(onClick = onClick).then(selectableModifier)
+                .combinedClickable(
+                    onClick = onClick,
+                    onDoubleClick = onDoubleClick
+                )
+                .then(selectableModifier)
                 .clip(AppTheme.shapes.round10)
                 .background(AppTheme.colors.surface)
                 .padding(horizontal = 10.dp, vertical = 10.dp)
@@ -213,10 +240,13 @@ fun FormatedCopiedDataItem(
             )
         }
 
-        CopiedDataTags(
-            copiedData = copiedData,
-            onDeleteClick = onDeleteClick
-        )
+        if (isShowTag) {
+            CopiedDataTags(
+                Modifier,
+                copiedData = copiedData,
+                onDeleteClick
+            )
+        }
     }
 
 }
@@ -228,7 +258,9 @@ fun FilesCopiedDataItem(
     copiedData: CopiedDataStable.File,
     isCurrent: Boolean,
     onClick: () -> Unit,
+    onDoubleClick: () -> Unit = {},
     onDeleteClick: () -> Unit,
+    isShowTag: Boolean,
 ) {
     val selectableModifier = if (isCurrent) {
         modifier.border(2.dp, AppTheme.colors.primary, AppTheme.shapes.round10)
@@ -238,7 +270,11 @@ fun FilesCopiedDataItem(
     Column {
         Column(
             modifier = Modifier
-                .clickable(onClick = onClick).then(selectableModifier)
+                .combinedClickable(
+                    onClick = onClick,
+                    onDoubleClick = onDoubleClick
+                )
+                .then(selectableModifier)
                 .clip(AppTheme.shapes.round10)
                 .background(AppTheme.colors.surface)
                 .padding(10.dp)
@@ -254,10 +290,13 @@ fun FilesCopiedDataItem(
             }
         }
 
-        CopiedDataTags(
-            copiedData = copiedData,
-            onDeleteClick = onDeleteClick
-        )
+        if (isShowTag) {
+            CopiedDataTags(
+                Modifier,
+                copiedData = copiedData,
+                onDeleteClick
+            )
+        }
     }
 
 }

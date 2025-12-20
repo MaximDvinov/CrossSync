@@ -17,24 +17,21 @@ dependencies {
     implementation(projects.shared.features.clipboard.data)
     implementation(projects.shared.features.clipboard.di)
     implementation(projects.shared.features.syncing.di)
+    implementation(projects.shared.features.setting.di)
 
     implementation(projects.shared.core.ui)
 
     implementation(libs.tulskiy.jkeymaster)
     implementation(libs.composenativetray)
 
-    implementation("dev.chrisbanes.haze:haze:1.7.0")
-
     implementation(libs.dd.plist)
-//    implementation(projects.shared.features.clipboard.presentation)
-//    implementation(projects.shared.core.ui)
 }
 
 compose.desktop {
     application {
         mainClass = "MainKt"
 
-        jvmArgs += listOf("-Dapple.awt.UIElement=true")
+        jvmArgs += listOf("-Dapple.awt.UIElement=true", "-Dskiko.gpu.resourceCacheLimit=50")
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

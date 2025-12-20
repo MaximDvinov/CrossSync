@@ -157,7 +157,7 @@ data class AppTypography(
         textAlign = TextAlign.Center
     ),
 
-    // Semi Bold 16
+    // Semi Bold 20
     val semiBold20: TextStyle = semiBold.copy(
         fontSize = 20.sp
     ),
@@ -165,6 +165,16 @@ data class AppTypography(
     // Semi Bold 20
     val semiBold20Center: TextStyle = semiBold.copy(
         fontSize = 20.sp,
+        textAlign = TextAlign.Center
+    ),
+
+    // Semi Bold 28
+    val semiBold28: TextStyle = semiBold.copy(
+        fontSize = 28.sp
+    ),
+
+    // Semi Bold 28
+    val semiBold28Center: TextStyle = semiBold.copy(
         textAlign = TextAlign.Center
     ),
 

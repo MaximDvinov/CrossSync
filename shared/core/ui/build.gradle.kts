@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.dependencies
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.compiler)
@@ -24,6 +26,7 @@ kotlin {
             implementation(libs.foundation)
             implementation(libs.material3)
             implementation(libs.components.resources)
+            implementation(libs.ui.tooling)
             implementation(libs.ui.tooling.preview)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.ktor.client.core)
@@ -47,6 +50,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.ui.tooling)
             implementation(libs.kotlinx.coroutines.android)
+
         }
 
         jvmMain.dependencies {

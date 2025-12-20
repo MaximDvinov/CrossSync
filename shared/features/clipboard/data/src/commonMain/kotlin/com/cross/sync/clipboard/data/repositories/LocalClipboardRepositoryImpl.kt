@@ -4,55 +4,94 @@ package com.cross.sync.clipboard.data.repositories
 
 import com.cross.sync.clipboard.data.mappers.toDomain
 import com.cross.sync.clipboard.data.mappers.toEntity
-import com.cross.sync.clipboard.db.AppDatabase
+import com.cross.sync.clipboard.db.CategoryDao
 import com.cross.sync.clipboard.db.ClipboardDao
+import com.cross.sync.clipboard.db.entities.CategoryCopiedDataCrossRef
+import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
-import kotlinx.collections.immutable.PersistentSet
-import kotlinx.collections.immutable.persistentHashSetOf
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 
 class LocalClipboardRepositoryImpl(
-    private val dao: ClipboardDao,
+    private val clipboardDao: ClipboardDao,
+    private val categoryDao: CategoryDao,
 ) : LocalClipboardRepository {
     override suspend fun addCopiedData(copiedData: CopiedData) {
-        dao.insert(
+        clipboardDao.insert(
             copiedData = copiedData.toEntity()
                 .copy(dateTime = Clock.System.now().toEpochMilliseconds())
         )
     }
 
     override suspend fun getLastCopiedData(): CopiedData? {
-        return dao.getLastCopiedData()?.toDomain()
+        return clipboardDao.getLastCopiedData()?.toDomain()
     }
 
-    override suspend fun getCopiedDataById(id: Int): CopiedData? {
-        return dao.getById(id = id)?.toDomain()
+    override suspend fun getCopiedDataById(id: Long): CopiedData? {
+        return clipboardDao.getById(id = id)?.toDomain()
     }
 
-    override suspend fun deleteCopiedDataById(id: Int) {
-        dao.deleteById(id)
+    override suspend fun deleteCopiedDataById(id: Long) {
+        clipboardDao.deleteById(id)
+    }
+
+    override suspend fun addCategory(category: Category) {
+        categoryDao.insert(category.toEntity())
+    }
+
+    override suspend fun updateCategory(category: Category) {
+        categoryDao.updateCategory(category.toEntity())
+    }
+
+    override suspend fun getCategoryById(id: Long): Category? {
+        return categoryDao.getById(id)?.toDomain()
+    }
+
+    override suspend fun deleteCategoryById(id: Long) {
+        categoryDao.deleteById(id)
+    }
+
+    override suspend fun addCopiedDataToCategory(
+        copiedDataId: Long,
+        categoryId: Long,
+    ) {
+        categoryDao.insert(CategoryCopiedDataCrossRef(categoryId, copiedDataId))
+    }
+
+    override suspend fun clearAllCopiedDataInCategory(categoryId: Long?) {
+        if (categoryId != null) {
+            categoryDao.getAllCopiedByCategoryData(categoryId).copiedDataList.forEach {
+                clipboardDao.deleteById(it.copiedDataId)
+            }
+        } else {
+            clipboardDao.deleteAll()
+        }
+
     }
 
     override suspend fun getAllCopiedData(): List<CopiedData> {
-        return dao.getAllCopiedData().map { it.toDomain() }
+        return clipboardDao.getAllCopiedData().map { it.toDomain() }
     }
 
-    override suspend fun clearAllCopiedData() {
-        dao.deleteAll()
-    }
-
-    @OptIn(ExperimentalTime::class)
     override fun observeCopiedData(): Flow<List<CopiedData>> {
-        return dao.getAllCopiedDataFlow().map { data ->
+        return clipboardDao.getAllCopiedDataFlow().map { data ->
+            data.map { it.toDomain() }
+        }
+    }
+
+    override fun observeCopiedDataByCategory(categoryId: Long): Flow<List<CopiedData>> {
+        return categoryDao.getAllCopiedByCategoryDataFlow(categoryId)
+            .map {
+                it.copiedDataList.map { entity -> entity.toDomain() }
+                    .sortedByDescending { entity -> entity.dateTime }
+            }
+    }
+
+    override fun observeCategories(): Flow<List<Category>> {
+        return categoryDao.getAllCategories().map { data ->
             data.map { it.toDomain() }
         }
     }

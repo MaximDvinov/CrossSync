@@ -1,4 +1,4 @@
-package com.cross.sync.theme
+package com.cross.sync.theme.icons
 
 import androidx.compose.runtime.staticCompositionLocalOf
 

@@ -13,8 +13,8 @@ interface ClipboardDao {
     @Insert(onConflict = IGNORE)
     suspend fun insert(copiedData: CopiedDataEntity)
 
-    @Query("SELECT * FROM copied_data WHERE id = :id")
-    suspend fun getById(id: Int): CopiedDataEntity?
+    @Query("SELECT * FROM copied_data WHERE copiedDataId = :id")
+    suspend fun getById(id: Long): CopiedDataEntity?
 
     @Query("SELECT * FROM copied_data ORDER BY dateTime DESC LIMIT 1")
     suspend fun getLastCopiedData(): CopiedDataEntity?
@@ -25,8 +25,8 @@ interface ClipboardDao {
     @Query("SELECT * FROM copied_data ORDER BY dateTime DESC")
     suspend fun getAllCopiedData(): List<CopiedDataEntity>
 
-    @Query("DELETE FROM copied_data WHERE id = :id")
-    suspend fun deleteById(id: Int)
+    @Query("DELETE FROM copied_data WHERE copiedDataId = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("DELETE FROM copied_data")
     suspend fun deleteAll()

@@ -12,6 +12,8 @@ data class AppColors(
     val onSurfaceVariant: Color = Color.Unspecified,
     val background: Color = Color.Unspecified,
     val outline: Color = Color.Unspecified,
+    val redContainer: Color = Color.Unspecified,
+    val onRedContainer: Color = Color.Unspecified
 )
 
 val lightColors by lazy {
@@ -24,6 +26,8 @@ val lightColors by lazy {
         onSurfaceVariant = Color(0xFF02609B),
         background = Color(0xFFF0F9FF),
         outline = Color(0xFF7989A2),
+        redContainer = Color(0xFFFFDCDC),
+        onRedContainer = Color(0xFF875454)
     )
 }
 
