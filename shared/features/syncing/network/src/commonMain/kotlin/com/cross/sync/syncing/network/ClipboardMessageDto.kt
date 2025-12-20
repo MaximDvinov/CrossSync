@@ -8,7 +8,7 @@ import kotlin.time.ExperimentalTime
 
 @Serializable
 data class ClipboardMessageDto(
-    val id: Int,
+    val id: Long,
     val content: String,
     val date: Long = Clock.System.now().toEpochMilliseconds(),
 )

@@ -14,11 +14,11 @@ fun ClipboardMessageDto.toDomain() = ClipboardMessage(
 )
 
 fun ClipboardMessageDto.toEntity() = CopiedDataEntity(
-    id = content.hashCode(), content = content, dateTime = date,
+    copiedDataId = content.hashCode().toLong(), content = content, dateTime = date,
     type = CopiedDataType.TEXT,
     applicationId = "android",
 )
 
 fun CopiedDataEntity.toDto() = ClipboardMessageDto(
-    id = id, content = content, date = dateTime
+    id = copiedDataId, content = content, date = dateTime
 )
