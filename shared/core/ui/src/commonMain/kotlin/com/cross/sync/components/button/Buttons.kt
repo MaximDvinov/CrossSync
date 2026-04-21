@@ -101,7 +101,7 @@ fun RoundedTextButton(
     enabled: Boolean = true,
     text: String,
     colors: ButtonsDefaults = ButtonsDefaults.buttonColors(),
-    textStyle: TextStyle = AppTheme.typography.semiBold12.copy(color = colors.colors.contentColor),
+    textStyle: TextStyle = AppTheme.typography.semiBold12Center.copy(color = colors.colors.contentColor),
 ) {
     RoundedButton(
         onClick = onClick,
@@ -110,6 +110,7 @@ fun RoundedTextButton(
         colors = colors,
         content = {
             BasicText(
+                modifier = Modifier,
                 text = text,
                 style = textStyle,
             )
@@ -149,5 +150,6 @@ fun BaseButton(
             .background(if (enabled) colors.colors.containerColor else colors.colors.disabledContainerColor)
             .padding(colors.contentPadding),
         content = content,
+        horizontalArrangement = Arrangement.Center
     )
 }

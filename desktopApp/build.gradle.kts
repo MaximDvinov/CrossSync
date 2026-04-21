@@ -31,7 +31,11 @@ compose.desktop {
     application {
         mainClass = "MainKt"
 
-        jvmArgs += listOf("-Dapple.awt.UIElement=true", "-Dskiko.gpu.resourceCacheLimit=50")
+        jvmArgs += listOf(
+            "-Dapple.awt.UIElement=true",
+            "-Dskiko.gpu.resourceCacheLimit=50",
+            "-Djava.net.preferIPv4Stack=true"
+        )
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

@@ -47,7 +47,8 @@ fun ApplicationScope.GeneralWindow(
                                 androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
                             )
                             .background(AppTheme.colors.background),
-                        onBack = closeWindow
+                        onBack = closeWindow,
+                        onOpenConnection = {}
                     )
                 }
             }

@@ -1,4 +1,5 @@
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -11,6 +12,8 @@ import com.cross.sync.clipboard.domain.entity.Application
 import com.cross.sync.clipboard.domain.usecase.SaveApplicationsUseCase
 import com.cross.sync.setting.di.settingModule
 import com.cross.sync.syncing.di.syncingModule
+import com.cross.sync.syncing.domain.usecases.ObservePairingUseCase
+import com.cross.sync.syncing.domain.usecases.StartSyncUseCase
 import com.tulskiy.keymaster.common.Provider
 import kotlinx.coroutines.launch
 import org.koin.compose.KoinApplication
@@ -35,9 +38,12 @@ fun main() = application {
     KoinApplication({
         modules(desktopModule, syncingModule, clipboardModule, settingModule)
     }) {
-//        val startSyncUseCase = koinInject<StartSyncUseCase>()
+        val startSyncUseCase = koinInject<StartSyncUseCase>()
+        val observePairingUseCase = koinInject<ObservePairingUseCase>()
         val saveApplicationsUseCase = koinInject<SaveApplicationsUseCase>()
         val globalHotkeyManager = koinInject<GlobalHotkeyManager>()
+
+        val pairingState by observePairingUseCase().collectAsState()
 
         LaunchedEffect(Unit) {
             launch {
@@ -51,9 +57,9 @@ fun main() = application {
             }
         }
 
-//        LaunchedEffect(Unit) {
-//            startSyncUseCase()
-//        }
+        LaunchedEffect(Unit) {
+            startSyncUseCase().collect {  }
+        }
 
         var generalWindowShowed by remember {
             mutableStateOf<GeneralWindowState?>(null)
@@ -66,8 +72,10 @@ fun main() = application {
             openHome = {
                 generalWindowShowed = GeneralWindowState.GENERAL
             },
-            globalHotkeyManager = globalHotkeyManager
+            globalHotkeyManager = globalHotkeyManager,
+            pairingState = pairingState
         )
+
         generalWindowShowed?.let {
             GeneralWindow(it) {
                 generalWindowShowed = null

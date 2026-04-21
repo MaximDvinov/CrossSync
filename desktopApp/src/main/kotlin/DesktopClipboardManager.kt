@@ -187,13 +187,9 @@ class DesktopClipboardManager() : ClipboardManager {
                     val contents = clipboard.getContents(null)
 
                     if (contents != null) {
-                        // 1) Files
                         result = getFilesData(contents)
-                        // 2) Image
                         if (result == null) result = getImageData(contents)
-                        // 3) Formatted text (HTML/RTF)
                         if (result == null) result = getFormattedTextData(contents)
-                        // 4) Plain text fallback
                         if (result == null) result = getPlainTextData(contents)
                     }
                 } catch (e: Exception) {

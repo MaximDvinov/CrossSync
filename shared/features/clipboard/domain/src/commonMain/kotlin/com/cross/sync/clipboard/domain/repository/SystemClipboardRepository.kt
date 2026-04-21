@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface SystemClipboardRepository {
     suspend fun setData(copiedData: CopiedData)
-    suspend fun getData()
+    suspend fun getData(): CopiedData?
     fun observeData(): StateFlow<CopiedData?>
     fun initClipboardManager(): StateFlow<CopiedData?>
 }

@@ -1,52 +1,70 @@
 [versions]
 # Build
-agp = "8.12.3"
+aesCbc = "0.5.1"
+agp = "8.13.2"
+cryptoRand = "0.6.0"
 ddPlist = "1.28"
-kotlin = "2.2.21"
+encodingBase64 = "1.2.3"
+kotlin = "2.3.10"
 compose-hot-reload = "1.0.0"
 
 # Compose
-compose = "1.10.0-rc01" # BOM for JetBrains Compose libraries
+compose = "1.10.0" # BOM for JetBrains Compose libraries
 coilCompose = "3.3.0"
 composeIcons = "1.1.1"
-androidx-activityCompose = "1.12.1"
+androidx-activityCompose = "1.12.3"
 htmlconverter = "1.1.0"
 material3 = "1.9.0"
 
 # AndroidX
-androidx-lifecycle = "2.9.6"
+compose-multiplatform-lifecycle = "2.10.0-alpha08"
 
 # Kotlin & Coroutines
 kotlinx-coroutines = "1.10.2"
 kotlinx-collections-immutable = "0.4.0"
-kotlinx-serialization = "1.9.0"
+kotlinx-serialization = "1.10.0"
 kotlinx-datetime = "0.7.1"
 
 # Networking - Ktor
-ktor = "3.3.3"
+ktor = "3.4.0"
 
 # Dependency Injection - Koin
 koin = "4.1.1"
 
 # Database
+qrKit = "3.1.3"
 room = "2.8.4"
+scanner = "0.6.0"
+secureRandom = "0.4.0"
+slf4jSimple = "2.0.17"
 sqlite = "2.6.2"
-ksp = "2.3.2"
+ksp = "2.3.4"
 
 # Multiplatform Helpers
 multiplatformSettings = "1.3.0"
+napier = "2.7.1"
 
 # Desktop Specific
 jkeymasterVersion = "1.3"
 jna = "5.18.1"
 jnativehook = "2.2.2"
-composenativetray = "1.0.4"
+composenativetray = "1.0.10"
 ui = "1.10.0-beta01"
+core = "1.17.0"
+lifecycleService = "2.10.0"
+
+# Navigation
+nav3Core = "1.0.0-alpha06"
+lifecycleViewmodelNav3 = "2.10.0"
 
 
 [libraries]
 # Compose
 dd-plist = { module = "com.googlecode.plist:dd-plist", version.ref = "ddPlist" }
+qr-kit = { module = "network.chaintech:qr-kit", version.ref = "qrKit" }
+scanner = { module = "io.github.kalinjul.easyqrscan:scanner", version.ref = "scanner" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4jSimple" }
+
 ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose" }
 ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "compose" }
 ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose" }
@@ -62,8 +80,8 @@ androidx-activityCompose = { module = "androidx.activity:activity-compose", vers
 htmlconverter = { module = "be.digitalia.compose.htmlconverter:htmlconverter", version.ref = "htmlconverter" }
 
 # AndroidX - Lifecycle
-androidx-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
-androidx-lifecycle-runtime = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "compose-multiplatform-lifecycle" }
+androidx-lifecycle-runtime = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "compose-multiplatform-lifecycle" }
 
 # Coroutines
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -81,6 +99,7 @@ ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negoti
 ktor-client-serialization = { module = "io.ktor:ktor-client-serialization", version.ref = "ktor" }
 ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
@@ -93,9 +112,12 @@ ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.re
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
 ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging", version.ref = "ktor" }
+ktor-server-auth = { module = "io.ktor:ktor-server-auth", version.ref = "ktor" }
+ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 
 # Dependency Injection - Koin
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
+koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 
@@ -104,15 +126,21 @@ androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.r
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 
-
 # Multiplatform Helpers
 multiplatformSettings = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatformSettings" }
+napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 
 # Desktop Specific
 composenativetray = { module = "io.github.kdroidfilter:composenativetray", version.ref = "composenativetray" }
 tulskiy-jkeymaster = { module = "com.github.tulskiy:jkeymaster", version.ref = "jkeymasterVersion" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 jnativehook = { module = "com.github.kwhat:jnativehook", version.ref = "jnativehook" }
+androidx-core = { group = "androidx.core", name = "core", version.ref = "core" }
+androidx-lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", version.ref = "lifecycleService" }
+
+# Navigation
+androidx-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "nav3Core" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "compose-multiplatform-lifecycle" }
 
 
 [plugins]

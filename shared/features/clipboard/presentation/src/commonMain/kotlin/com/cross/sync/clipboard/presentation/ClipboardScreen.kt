@@ -3,21 +3,17 @@
 package com.cross.sync.clipboard.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,16 +21,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.BasicText
 import com.cross.sync.clipboard.presentation.model.CategoryStable
 import com.cross.sync.clipboard.presentation.model.CopiedDataStable
 import com.cross.sync.clipboard.presentation.ui.CategoryItem
@@ -58,9 +48,12 @@ import kotlin.uuid.ExperimentalUuidApi
 fun ClipboardScreen(
     modifier: Modifier,
     viewModel: ClipboardViewModel = koinInject(),
-    onClose: () -> Unit,
-    onOpenFullApp: () -> Unit,
-    onPaste: () -> Unit,
+    onClose: (() -> Unit)? = null,
+    onOpenFullApp: (() -> Unit)? = null,
+    onPaste: (() -> Unit)? = null,
+    onSendToMac: (() -> Unit)? = null,
+    isSendingToMac: Boolean = false,
+    sendToMacError: String? = null
 ) {
     val state by viewModel.state.collectAsState()
     val dragAndDropState = rememberDragAndDropState<CopiedDataStable>()
@@ -69,7 +62,17 @@ fun ClipboardScreen(
         Column(
             modifier = modifier.fillMaxSize()
         ) {
-            TopBar(onClose)
+            TopBar(
+                onClose = onClose,
+                onOpenSettings = onOpenFullApp
+            )
+            sendToMacError?.let {
+                BasicText(
+                    text = it,
+                    style = AppTheme.typography.semiBold12.copy(color = AppTheme.colors.onRedContainer),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
 
             DragAndDropContainer(
                 dragAndDropState = dragAndDropState,
@@ -96,12 +99,14 @@ fun ClipboardScreen(
                         },
                         onSelect = viewModel::selectCategory,
                         addCopiedDataToCategory = viewModel::addCopiedDataToCategory,
-                        dragAndDropState = dragAndDropState
+                        dragAndDropState = dragAndDropState,
+                        onSendToMac = onSendToMac,
+                        isSendingToMac = isSendingToMac
                     )
 
                     CopiedDataList(
                         copiedDataList = state.copiedDataList,
-                        onPaste = onPaste,
+                        onPaste = onPaste ?: {},
                         currentCategory = state.selectedCategory,
                         onAddCopiedData = viewModel::addCopiedData,
                         onDelete = viewModel::deleteCopiedData,
@@ -125,6 +130,8 @@ fun CategoryBar(
     onSelect: (CategoryStable?) -> Unit,
     addCopiedDataToCategory: (Long, CopiedDataStable) -> Unit,
     dragAndDropState: DragAndDropState<CopiedDataStable>,
+    onSendToMac: (() -> Unit)?,
+    isSendingToMac: Boolean
 ) {
     Row(
         modifier = modifier.fillMaxWidth()
@@ -167,6 +174,17 @@ fun CategoryBar(
             }
         }
 
+        onSendToMac?.let { sendAction ->
+            RoundedTextButton(
+                modifier = Modifier.padding(end = 10.dp),
+                onClick = sendAction,
+                enabled = !isSendingToMac,
+                colors = ButtonsDefaults.buttonPadding(vertical = 6.dp),
+                text = if (isSendingToMac) "Sending..." else "Send to Mac",
+                textStyle = AppTheme.typography.semiBold12.copy(color = AppTheme.colors.onSurfaceVariant),
+            )
+        }
+
         RoundedTextButton(
             modifier = Modifier.padding(end = 10.dp),
             onClick = clearAll,
@@ -195,7 +213,7 @@ fun CopiedDataList(
 
     }
 
-    LaunchedEffect(currentCategory){
+    LaunchedEffect(currentCategory) {
         delay(200)
         val index = copiedDataList.indexOfFirst { it.id == currentCopiedData?.id }
         listState.scrollToItem(if (index >= 0) index else 0)

@@ -18,42 +18,66 @@ import androidx.compose.ui.unit.dp
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.Close
 import com.cross.sync.theme.icons.CrossSync
+import com.cross.sync.theme.icons.More
 
 @Composable
-fun TopBar(onClose: () -> Unit) {
+fun TopBar(
+    onClose: (() -> Unit)?,
+    onOpenSettings: (() -> Unit)? = null
+) {
     Row(
-        modifier = Modifier.Companion.fillMaxWidth().padding(10.dp),
-        verticalAlignment = Alignment.Companion.CenterVertically
+        modifier = Modifier.fillMaxWidth().padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = AppTheme.icons.CrossSync,
             contentDescription = null,
             tint = AppTheme.colors.primary,
-            modifier = Modifier.Companion.size(30.dp)
+            modifier = Modifier.size(30.dp)
         )
 
         BasicText(
-            modifier = Modifier.Companion.weight(1f).padding(horizontal = 5.dp),
+            modifier = Modifier.weight(1f).padding(horizontal = 5.dp),
             text = "CrossSync",
             style = AppTheme.typography.semiBold20.copy(
                 color = AppTheme.colors.primary,
-                textAlign = TextAlign.Companion.Center,
+                textAlign = if (onClose == null && onOpenSettings == null) TextAlign.Start else TextAlign.Center,
             )
         )
 
-        Box(
-            Modifier.Companion
-                .clickable(onClick = onClose)
-                .size(30.dp)
-                .clip(AppTheme.shapes.round10)
-                .background(AppTheme.colors.surfaceVariant),
-            contentAlignment = Alignment.Companion.Center
-        ) {
-            Icon(
-                imageVector = AppTheme.icons.Close,
-                contentDescription = null,
-                tint = AppTheme.colors.onSurfaceVariant
-            )
+        onOpenSettings?.let { openSettings ->
+            Box(
+                Modifier
+                    .clickable(onClick = openSettings)
+                    .size(30.dp)
+                    .clip(AppTheme.shapes.round10)
+                    .background(AppTheme.colors.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = AppTheme.icons.More,
+                    contentDescription = null,
+                    tint = AppTheme.colors.onSurfaceVariant
+                )
+            }
         }
+
+        onClose?.let {
+            Box(
+                Modifier
+                    .clickable(onClick = it)
+                    .size(30.dp)
+                    .clip(AppTheme.shapes.round10)
+                    .background(AppTheme.colors.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = AppTheme.icons.Close,
+                    contentDescription = null,
+                    tint = AppTheme.colors.onSurfaceVariant
+                )
+            }
+        }
+
     }
 }

@@ -23,9 +23,11 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import com.cross.sync.clipboard.presentation.ClipboardScreen
-import com.cross.sync.theme.icons.AppIcons
+import com.cross.sync.syncing.domain.entity.PairingState
 import com.cross.sync.theme.AppTheme
+import com.cross.sync.theme.icons.AppIcons
 import com.cross.sync.theme.icons.CrossSync
+import com.cross.sync.theme.icons.LogoNoConnect
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import com.kdroid.composetray.tray.api.Tray
 import kotlinx.coroutines.delay
@@ -42,7 +44,8 @@ import java.awt.Dimension
 fun ApplicationScope.QuickClipboardWindow(
     openSetting: () -> Unit,
     openHome: () -> Unit,
-    globalHotkeyManager: GlobalHotkeyManager
+    globalHotkeyManager: GlobalHotkeyManager,
+    pairingState: PairingState?,
 ) {
     val density = LocalDensity.current
 
@@ -57,7 +60,7 @@ fun ApplicationScope.QuickClipboardWindow(
     var prevAppId by remember { mutableStateOf<String?>(null) }
 
     Tray(
-        icon = AppIcons().CrossSync,
+        icon = if (pairingState is PairingState.Connected) AppIcons().CrossSync else AppIcons().LogoNoConnect,
         tooltip = "Open app",
         tint = null,
         primaryAction = {
@@ -159,13 +162,13 @@ fun ApplicationScope.QuickClipboardWindow(
                             showWindow = false
                         },
                         onOpenFullApp = openHome,
-                    ) {
+                        onPaste = {
                         coroutineScope.launch {
                             showWindow = false
                             prevAppId?.let { bringAppToFront(it) }
                             pasteClipboardMac()
                         }
-                    }
+                    })
                 }
             }
 

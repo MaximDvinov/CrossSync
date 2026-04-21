@@ -3,7 +3,7 @@ package com.cross.sync.clipboard.di
 import com.cross.sync.clipboard.data.repositories.ApplicationRepositoryImpl
 import com.cross.sync.clipboard.data.repositories.LocalClipboardRepositoryImpl
 import com.cross.sync.clipboard.data.repositories.SystemClipboardRepositoryImpl
-import com.cross.sync.clipboard.db.databaseModule
+import com.cross.sync.core.db.databaseModule
 import com.cross.sync.clipboard.domain.repository.ApplicationRepository
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.clipboard.domain.repository.SystemClipboardRepository

@@ -1,5 +1,3 @@
-import org.jetbrains.compose.ExperimentalComposeLibrary
-
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.compiler)
@@ -12,7 +10,7 @@ kotlin {
     android {
         namespace = "com.cross.sync.syncing.presentation"
         compileSdk = 36
-        minSdk = 23
+        minSdk = 24
         androidResources.enable = true
     }
 
@@ -39,11 +37,13 @@ kotlin {
             implementation(libs.koin.compose)
 
             implementation(projects.shared.features.syncing.domain)
+            implementation(projects.shared.features.clipboard.domain)
             implementation(projects.shared.core.ui)
+
+            implementation(libs.scanner)
         }
 
         androidMain.dependencies {
-            implementation(compose.uiTooling)
             implementation(libs.kotlinx.coroutines.android)
         }
 

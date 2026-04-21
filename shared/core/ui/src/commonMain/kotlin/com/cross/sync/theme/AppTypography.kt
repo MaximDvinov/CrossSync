@@ -90,6 +90,11 @@ data class AppTypography(
         fontSize = 12.sp
     ),
 
+    // Medium 12 Centered
+    val medium12Center: TextStyle = medium12.copy(
+        textAlign = TextAlign.Center
+    ),
+
     // Medium 14
     val medium14: TextStyle = medium.copy(
         fontSize = 14.sp
@@ -138,6 +143,11 @@ data class AppTypography(
     // Semi Bold - 12
     val semiBold12: TextStyle = semiBold.copy(
         fontSize = 12.sp
+    ),
+
+    // Semi Bold - 12
+    val semiBold12Center: TextStyle = semiBold12.copy(
+        textAlign = TextAlign.Center
     ),
 
     // Semi Bold - 14

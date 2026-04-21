@@ -1,5 +1,3 @@
-import org.jetbrains.compose.ExperimentalComposeLibrary
-
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kmp.library)
@@ -9,7 +7,7 @@ kotlin {
     android {
         namespace = "com.cross.sync.clipboard.di"
         compileSdk = 36
-        minSdk = 23
+        minSdk = 24
         androidResources.enable = true
     }
 
@@ -25,7 +23,7 @@ kotlin {
             implementation(libs.koin.compose.viewmodel)
 
             implementation(projects.shared.features.clipboard.data)
-            implementation(projects.shared.features.clipboard.db)
+            implementation(projects.shared.core.db)
             api(projects.shared.features.clipboard.presentation)
             api(projects.shared.features.clipboard.domain)
         }

@@ -4,9 +4,9 @@ package com.cross.sync.clipboard.data.repositories
 
 import com.cross.sync.clipboard.data.mappers.toDomain
 import com.cross.sync.clipboard.data.mappers.toEntity
-import com.cross.sync.clipboard.db.CategoryDao
-import com.cross.sync.clipboard.db.ClipboardDao
-import com.cross.sync.clipboard.db.entities.CategoryCopiedDataCrossRef
+import com.cross.sync.core.db.CategoryDao
+import com.cross.sync.core.db.ClipboardDao
+import com.cross.sync.core.db.entities.CategoryCopiedDataCrossRef
 import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository

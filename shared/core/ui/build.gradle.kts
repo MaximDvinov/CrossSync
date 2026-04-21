@@ -13,7 +13,7 @@ kotlin {
     android {
         namespace = "com.cross.sync.core.ui"
         compileSdk = 36
-        minSdk = 23
+        minSdk = 24
         androidResources.enable = true
     }
 

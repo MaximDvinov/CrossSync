@@ -9,7 +9,7 @@ kotlin {
     android {
         namespace = "com.cross.sync.clipboard.domain"
         compileSdk = 36
-        minSdk = 23
+        minSdk = 24
         androidResources.enable = true
     }
 
