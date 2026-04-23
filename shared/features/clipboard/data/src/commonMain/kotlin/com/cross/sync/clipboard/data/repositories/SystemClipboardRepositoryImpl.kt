@@ -13,8 +13,8 @@ class SystemClipboardRepositoryImpl(
         clipboardManager.setData(copiedData)
     }
 
-    override suspend fun getData() {
-        clipboardManager.getData()
+    override suspend fun getData(): CopiedData? {
+        return clipboardManager.getData()
     }
 
     override fun observeData(): StateFlow<CopiedData?> {

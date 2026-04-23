@@ -16,16 +16,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import com.cross.sync.clipboard.presentation.ClipboardSectionHeader
 import com.cross.sync.clipboard.presentation.ClipboardScreen
-import com.cross.sync.theme.icons.AppIcons
+import com.cross.sync.setting.domain.SettingPreferencesStore
+import com.cross.sync.syncing.domain.entity.PairingState
 import com.cross.sync.theme.AppTheme
+import com.cross.sync.theme.icons.AppIcons
 import com.cross.sync.theme.icons.CrossSync
+import com.cross.sync.theme.icons.LogoNoConnect
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import com.kdroid.composetray.tray.api.Tray
 import kotlinx.coroutines.delay
@@ -37,13 +40,16 @@ import utils.calculateWindowPositionUnderMouse
 import utils.getFrontmostAppBundleId
 import utils.pasteClipboardMac
 import java.awt.Dimension
+import org.koin.compose.koinInject
 
 @Composable
 fun ApplicationScope.QuickClipboardWindow(
     openSetting: () -> Unit,
     openHome: () -> Unit,
-    globalHotkeyManager: GlobalHotkeyManager
+    globalHotkeyManager: GlobalHotkeyManager,
+    pairingState: PairingState?,
 ) {
+    val settingPreferencesStore = koinInject<SettingPreferencesStore>()
     val density = LocalDensity.current
 
     val windowWidthDp = 350.dp
@@ -55,9 +61,12 @@ fun ApplicationScope.QuickClipboardWindow(
     val coroutineScope = rememberCoroutineScope()
 
     var prevAppId by remember { mutableStateOf<String?>(null) }
+    var quickAccessHistorySize by remember {
+        mutableStateOf(settingPreferencesStore.getGeneralSettings().quickAccessHistorySize)
+    }
 
     Tray(
-        icon = AppIcons().CrossSync,
+        icon = if (pairingState is PairingState.Connected) AppIcons().CrossSync else AppIcons().LogoNoConnect,
         tooltip = "Open app",
         tint = null,
         primaryAction = {
@@ -117,6 +126,8 @@ fun ApplicationScope.QuickClipboardWindow(
 
     LaunchedEffect(showWindow) {
         if (showWindow) {
+            quickAccessHistorySize =
+                settingPreferencesStore.getGeneralSettings().quickAccessHistorySize
             windowState.position =
                 calculateWindowPositionUnderMouse(
                     windowWidthDp,
@@ -147,11 +158,11 @@ fun ApplicationScope.QuickClipboardWindow(
             AppTheme {
                 Box {
                     ClipboardScreen(
-                        modifier = Modifier.Companion
+                        modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
                             .border(
                                 0.1.dp,
-                                color = Color(0x3300253C),
+                                color = AppTheme.colors.outline.copy(alpha = 0.2f),
                                 androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
                             )
                             .background(AppTheme.colors.background),
@@ -159,13 +170,25 @@ fun ApplicationScope.QuickClipboardWindow(
                             showWindow = false
                         },
                         onOpenFullApp = openHome,
-                    ) {
-                        coroutineScope.launch {
-                            showWindow = false
-                            prevAppId?.let { bringAppToFront(it) }
-                            pasteClipboardMac()
+                        isLargeControls = false,
+                        maxVisibleItems = quickAccessHistorySize,
+                        showCategoryBar = false,
+                        showClearAllButton = false,
+//                        headerContent = {
+//                            ClipboardSectionHeader(
+//                                title = "Quick Access",
+//                                description = "Recent copied items for fast paste.",
+//                                horizontalPadding = 10.dp
+//                            )
+//                        },
+                        onPaste = {
+                            coroutineScope.launch {
+                                showWindow = false
+                                prevAppId?.let { bringAppToFront(it) }
+                                pasteClipboardMac()
+                            }
                         }
-                    }
+                    )
                 }
             }
 

@@ -7,7 +7,7 @@ kotlin {
     android {
         namespace = "com.cross.sync.syncing.di"
         compileSdk = 36
-        minSdk = 23
+        minSdk = 24
         androidResources.enable = true
     }
 
@@ -16,11 +16,15 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.multiplatformSettings)
 
             implementation(projects.shared.features.syncing.network)
             api(projects.shared.features.syncing.domain)
             implementation(projects.shared.features.syncing.data)
-            implementation(projects.shared.features.clipboard.db)
+            api(projects.shared.features.syncing.presentation)
+            implementation(projects.shared.core.db)
             implementation(projects.shared.features.clipboard.domain)
         }
 

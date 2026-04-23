@@ -13,6 +13,11 @@ data class CategoryStable(
             id = -1,
             name = "All"
         )
+
+        val UNCATEGORIZED = CategoryStable(
+            id = -2,
+            name = "Other"
+        )
     }
 }
 

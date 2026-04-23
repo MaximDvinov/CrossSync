@@ -1,5 +1,6 @@
 package com.cross.sync.clipboard.presentation.ui
 
+import Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable

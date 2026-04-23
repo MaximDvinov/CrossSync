@@ -7,7 +7,7 @@ kotlin {
     android {
         namespace = "com.cross.sync.setting.di"
         compileSdk = 36
-        minSdk = 23
+        minSdk = 24
         androidResources.enable = true
     }
 
@@ -17,6 +17,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.multiplatformSettings)
 
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
@@ -24,6 +25,7 @@ kotlin {
 
             api(projects.shared.features.setting.presentation)
             api(projects.shared.features.setting.domain)
+            api(projects.shared.features.syncing.domain)
             implementation(projects.shared.features.clipboard.domain)
         }
 

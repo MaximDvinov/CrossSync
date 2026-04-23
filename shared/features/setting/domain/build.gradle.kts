@@ -7,7 +7,7 @@ kotlin {
     android {
         namespace = "com.cross.sync.setting.domain"
         compileSdk = 36
-        minSdk = 23
+        minSdk = 24
         androidResources.enable = true
     }
 
@@ -17,6 +17,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.multiplatformSettings)
         }
 
         androidMain.dependencies {

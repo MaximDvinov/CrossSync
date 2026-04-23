@@ -16,3 +16,4 @@ Pods/
 *.gpg
 *yarn.lock
 /module_example
+/.gradle-local/

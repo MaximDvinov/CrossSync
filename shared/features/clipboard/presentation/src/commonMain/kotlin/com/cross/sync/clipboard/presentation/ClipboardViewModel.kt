@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.cross.sync.clipboard.domain.usecase.AddCopiedDataToCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.AddCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.ClearCopiedDataByIdUseCase
+import com.cross.sync.clipboard.domain.usecase.ClearUncategorizedCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.DeleteCopiedDataByIdUseCase
 import com.cross.sync.clipboard.domain.usecase.GetApplicationsUseCase
 import com.cross.sync.clipboard.domain.usecase.InitClipboardManagerUseCase
@@ -15,6 +16,7 @@ import com.cross.sync.clipboard.domain.usecase.ObserveCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.ObserveCopiedDataByCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.ObserveCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.ObserveCurrentCopiedDataUseCase
+import com.cross.sync.clipboard.domain.usecase.ObserveUncategorizedCopiedDataUseCase
 import com.cross.sync.clipboard.presentation.model.CategoryStable
 import com.cross.sync.clipboard.presentation.model.CopiedDataStable
 import com.cross.sync.clipboard.presentation.model.toStable
@@ -46,8 +48,10 @@ class ClipboardViewModel(
     observeCurrentCopiedDataUseCase: ObserveCurrentCopiedDataUseCase,
     observeCategoryUseCase: ObserveCategoryUseCase,
     private val observeCopiedDataByCategoryUseCase: ObserveCopiedDataByCategoryUseCase,
+    private val observeUncategorizedCopiedDataUseCase: ObserveUncategorizedCopiedDataUseCase,
     private val getApplicationsUseCase: GetApplicationsUseCase,
     private val clearCopiedDataByIdUseCase: ClearCopiedDataByIdUseCase,
+    private val clearUncategorizedCopiedDataUseCase: ClearUncategorizedCopiedDataUseCase,
     private val addCopiedDataToCategory: AddCopiedDataToCategoryUseCase
 ) : ViewModel() {
     private val copiedDataFlow = observeCurrentCopiedDataUseCase().map { it?.toStable() }.stateIn(
@@ -101,6 +105,16 @@ class ClipboardViewModel(
                     }
                     _state.value = _state.value.copy(copiedDataList = combined)
                 }
+            } else if (category.id == CategoryStable.UNCATEGORIZED.id) {
+                observeUncategorizedCopiedDataUseCase().combine(getApplicationsUseCase()) { copiedData, applications ->
+                    copiedData to applications
+                }.collect { (copiedData, applications) ->
+                    val combined = copiedData.map {
+                        val app = applications.find { app -> app.id == it.applicationId }
+                        it.toStable(app)
+                    }
+                    _state.value = _state.value.copy(copiedDataList = combined)
+                }
             } else {
                 observeCopiedDataByCategoryUseCase(category.id).combine(getApplicationsUseCase()) { copiedData, applications ->
                     copiedData to applications
@@ -137,7 +151,12 @@ class ClipboardViewModel(
 
     fun clearAll() {
         viewModelScope.launch {
-            clearCopiedDataByIdUseCase(_state.value.selectedCategory?.id)
+            val selectedCategory = _state.value.selectedCategory
+            if (selectedCategory?.id == CategoryStable.UNCATEGORIZED.id) {
+                clearUncategorizedCopiedDataUseCase()
+            } else {
+                clearCopiedDataByIdUseCase(selectedCategory?.id)
+            }
         }
     }
 }

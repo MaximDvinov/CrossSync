@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.cross.sync.clipboard.presentation.model.CategoryStable
-import com.cross.sync.components.dragAndDrop.DragAndDropState
 import com.cross.sync.theme.AppTheme
 
 @Composable
@@ -24,20 +23,31 @@ fun CategoryItem(
     category: CategoryStable,
     onSelect: () -> Unit,
     isSelect: Boolean,
+    isLargeControls: Boolean = true,
 ) {
+    val style =
+        if (isLargeControls)
+            AppTheme.typography.semiBold16Center.copy(
+                color = if (isSelect) AppTheme.colors.onSurface else AppTheme.colors.outline
+            )
+        else AppTheme.typography.semiBold14Center.copy(
+            color = if (isSelect) AppTheme.colors.onSurface else AppTheme.colors.outline
+        )
     Column(
-        modifier = modifier.clickable(onClick = onSelect).height(30.dp).padding(4.dp),
+        modifier = modifier.clickable(onClick = onSelect)
+            .height(if (isLargeControls) 32.dp else 28.dp)
+            .padding(4.dp),
         horizontalAlignment = Alignment.Companion.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
         BasicText(
             text = category.name,
-            style = AppTheme.typography.semiBold16Center.copy(color = if (isSelect) AppTheme.colors.onSurface else AppTheme.colors.outline)
+            style = style
         )
 
         AnimatedVisibility(isSelect) {
             Box(
-                modifier = Modifier.Companion.height(2.dp).width(16.dp)
+                modifier = Modifier.height(2.dp).width(16.dp)
                     .background(color = AppTheme.colors.primary)
             )
         }

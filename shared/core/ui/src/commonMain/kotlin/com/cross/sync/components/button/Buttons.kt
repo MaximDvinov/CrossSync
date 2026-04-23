@@ -1,5 +1,6 @@
 package com.cross.sync.components.button
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
@@ -101,7 +103,7 @@ fun RoundedTextButton(
     enabled: Boolean = true,
     text: String,
     colors: ButtonsDefaults = ButtonsDefaults.buttonColors(),
-    textStyle: TextStyle = AppTheme.typography.semiBold12.copy(color = colors.colors.contentColor),
+    textStyle: TextStyle = AppTheme.typography.semiBold12Center.copy(color = colors.colors.contentColor),
 ) {
     RoundedButton(
         onClick = onClick,
@@ -110,6 +112,7 @@ fun RoundedTextButton(
         colors = colors,
         content = {
             BasicText(
+                modifier = Modifier,
                 text = text,
                 style = textStyle,
             )
@@ -142,12 +145,15 @@ fun BaseButton(
     colors: ButtonsDefaults,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val animatedBackground by animateColorAsState(if (enabled) colors.colors.containerColor else colors.colors.disabledContainerColor)
+
     Row(
         modifier = modifier
             .clickable(onClick = onClick, enabled = enabled)
             .clip(colors.shape)
-            .background(if (enabled) colors.colors.containerColor else colors.colors.disabledContainerColor)
+            .background(animatedBackground)
             .padding(colors.contentPadding),
         content = content,
+        horizontalArrangement = Arrangement.Center
     )
 }

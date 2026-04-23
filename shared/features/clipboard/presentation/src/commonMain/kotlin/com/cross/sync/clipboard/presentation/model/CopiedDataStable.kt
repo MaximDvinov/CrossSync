@@ -8,6 +8,7 @@ import com.cross.sync.clipboard.domain.entity.Application
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -152,6 +153,38 @@ fun CopiedData.toStable(application: Application? = null): CopiedDataStable = wh
     )
 
     is CopiedData.File -> CopiedDataStable.File(id, filePaths, dateTime, applicationId, application)
+}
+
+fun CopiedDataStable.toDomain(): CopiedData = when (this) {
+    is CopiedDataStable.Text -> CopiedData.Text(
+        id = id,
+        text = text,
+        dateTime = date.toInstant(TimeZone.currentSystemDefault()),
+        applicationId = applicationId
+    )
+
+    is CopiedDataStable.FormattedText -> CopiedData.FormattedText(
+        id = id,
+        text = text,
+        plainText = plainText,
+        mimeType = mimeType,
+        dateTime = date.toInstant(TimeZone.currentSystemDefault()),
+        applicationId = applicationId
+    )
+
+    is CopiedDataStable.Image -> CopiedData.Image(
+        id = id,
+        imagePath = imagePath,
+        dateTime = date.toInstant(TimeZone.currentSystemDefault()),
+        applicationId = applicationId
+    )
+
+    is CopiedDataStable.File -> CopiedData.File(
+        id = id,
+        filePaths = filePaths,
+        dateTime = date.toInstant(TimeZone.currentSystemDefault()),
+        applicationId = applicationId
+    )
 }
 
 expect fun String.base64ToImageBitmap(): ImageBitmap

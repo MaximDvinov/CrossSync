@@ -3,7 +3,7 @@ package com.cross.sync.components.dragAndDrop
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
@@ -25,7 +25,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.toSize
-import kotlinx.serialization.json.JsonNull.content
 
 @Composable
 fun <T> Modifier.draggableComponent(
@@ -40,7 +39,7 @@ fun <T> Modifier.draggableComponent(
             composableGlobalOffset = it.positionInWindow()
         }
         .pointerInput(Unit) {
-            detectDragGestures(
+            detectDragGesturesAfterLongPress(
                 onDragStart = { localPointer ->
                     val globalPointer = composableGlobalOffset + localPointer
                     dragAndDropState.onDragStart(globalPointer, data)

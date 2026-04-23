@@ -9,7 +9,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        minSdk = 23
+        minSdk = 24
         targetSdk = 36
 
         applicationId = "com.cross.sync.androidApp"
@@ -23,6 +23,20 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":shared:core:ui"))
     implementation(libs.androidx.activityCompose)
+    implementation(libs.ui)
+    implementation(libs.ui.tooling)
+    implementation(libs.ui.tooling.preview)
+    implementation(libs.foundation)
+    implementation(libs.runtime)
+    implementation(libs.koin.core)
+    implementation(libs.koin.android)
+    implementation(libs.napier)
+
+    implementation(projects.shared.features.client)
+    implementation(projects.shared.features.clipboard.data)
+    implementation(projects.shared.features.clipboard.domain)
+    implementation(projects.shared.features.syncing.data)
+    implementation(projects.shared.core.ui)
+
 }

@@ -10,7 +10,7 @@ kotlin {
     android {
         namespace = "com.cross.sync.setting.presentation"
         compileSdk = 36
-        minSdk = 23
+        minSdk = 24
         androidResources.enable = true
     }
 
@@ -30,6 +30,7 @@ kotlin {
 
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.multiplatformSettings)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime)
 
@@ -37,7 +38,11 @@ kotlin {
             implementation(libs.koin.compose)
 
             implementation(projects.shared.features.clipboard.domain)
+            implementation(projects.shared.features.syncing.domain)
+            implementation(projects.shared.features.setting.domain)
             implementation(projects.shared.core.ui)
+
+
         }
 
         androidMain.dependencies {
@@ -47,6 +52,9 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
+            implementation("network.chaintech:qr-kit:${libs.versions.qrKit.get()}") {
+                exclude(group = "org.bytedeco")
+            }
         }
     }
 }

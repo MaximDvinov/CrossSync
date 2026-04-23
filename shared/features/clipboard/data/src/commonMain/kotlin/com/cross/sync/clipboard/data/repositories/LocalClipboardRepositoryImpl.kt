@@ -4,9 +4,9 @@ package com.cross.sync.clipboard.data.repositories
 
 import com.cross.sync.clipboard.data.mappers.toDomain
 import com.cross.sync.clipboard.data.mappers.toEntity
-import com.cross.sync.clipboard.db.CategoryDao
-import com.cross.sync.clipboard.db.ClipboardDao
-import com.cross.sync.clipboard.db.entities.CategoryCopiedDataCrossRef
+import com.cross.sync.core.db.CategoryDao
+import com.cross.sync.core.db.ClipboardDao
+import com.cross.sync.core.db.entities.CategoryCopiedDataCrossRef
 import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
@@ -72,6 +72,14 @@ class LocalClipboardRepositoryImpl(
 
     }
 
+    override suspend fun clearUncategorizedCopiedData() {
+        clipboardDao.deleteUncategorized()
+    }
+
+    override suspend fun clearCopiedDataOlderThan(olderThanEpochMillis: Long) {
+        clipboardDao.deleteOlderThan(olderThanEpochMillis)
+    }
+
     override suspend fun getAllCopiedData(): List<CopiedData> {
         return clipboardDao.getAllCopiedData().map { it.toDomain() }
     }
@@ -88,6 +96,12 @@ class LocalClipboardRepositoryImpl(
                 it.copiedDataList.map { entity -> entity.toDomain() }
                     .sortedByDescending { entity -> entity.dateTime }
             }
+    }
+
+    override fun observeUncategorizedCopiedData(): Flow<List<CopiedData>> {
+        return clipboardDao.getUncategorizedCopiedDataFlow().map { data ->
+            data.map { it.toDomain() }
+        }
     }
 
     override fun observeCategories(): Flow<List<Category>> {

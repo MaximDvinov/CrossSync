@@ -2,11 +2,11 @@
 
 package com.cross.sync.clipboard.data.mappers
 
-import com.cross.sync.clipboard.db.entities.ApplicationEntity
-import com.cross.sync.clipboard.db.entities.CategoryEntity
-import com.cross.sync.clipboard.db.entities.CategoryWithCopiedData
-import com.cross.sync.clipboard.db.entities.CopiedDataEntity
-import com.cross.sync.clipboard.db.entities.CopiedDataType
+import com.cross.sync.core.db.entities.ApplicationEntity
+import com.cross.sync.core.db.entities.CategoryEntity
+import com.cross.sync.core.db.entities.CategoryWithCopiedData
+import com.cross.sync.core.db.entities.CopiedDataEntity
+import com.cross.sync.core.db.entities.CopiedDataType
 import com.cross.sync.clipboard.domain.entity.Application
 import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.clipboard.domain.entity.CopiedData
