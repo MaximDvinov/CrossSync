@@ -14,4 +14,6 @@ interface SyncRepository {
     suspend fun connect(): Result<Flow<ClientConnectState>>
 
     suspend fun sendCopiedData(data: CopiedData): Result<Unit>
+
+    fun disconnect(): Result<Unit>
 }

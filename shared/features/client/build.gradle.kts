@@ -22,6 +22,7 @@ kotlin {
             implementation(libs.runtime)
             implementation(libs.ui)
             implementation(libs.foundation)
+            implementation(libs.material3)
             implementation(libs.ui.tooling)
 
             implementation(libs.kotlinx.coroutines.core)

@@ -28,4 +28,9 @@ class AndroidSyncRepositoryImpl(
             context.startService(intent)
         }
     }
+
+    override fun disconnect(): Result<Unit> = runCatchingForApi {
+        super.disconnect().getOrThrow()
+        context.stopService(Intent(context, SyncForegroundService::class.java))
+    }
 }

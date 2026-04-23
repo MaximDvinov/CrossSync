@@ -30,6 +30,7 @@ kotlin {
 
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
+            implementation(libs.multiplatformSettings)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime)
 
@@ -38,6 +39,7 @@ kotlin {
 
             implementation(projects.shared.features.clipboard.domain)
             implementation(projects.shared.features.syncing.domain)
+            implementation(projects.shared.features.setting.domain)
             implementation(projects.shared.core.ui)
 
 
@@ -50,7 +52,9 @@ kotlin {
         jvmMain.dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
-            implementation(libs.qr.kit)
+            implementation("network.chaintech:qr-kit:${libs.versions.qrKit.get()}") {
+                exclude(group = "org.bytedeco")
+            }
         }
     }
 }

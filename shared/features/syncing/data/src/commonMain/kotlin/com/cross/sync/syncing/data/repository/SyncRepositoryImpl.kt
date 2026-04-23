@@ -28,4 +28,8 @@ open class SyncRepositoryImpl(
     override suspend fun sendCopiedData(data: CopiedData): Result<Unit> {
         return client.sendCopiedData(data)
     }
+
+    override fun disconnect(): Result<Unit> = runCatching {
+        client.disconnect()
+    }
 }

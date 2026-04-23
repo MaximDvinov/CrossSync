@@ -3,6 +3,7 @@
 import androidx.compose.ui.util.fastJoinToString
 import com.cross.sync.clipboard.data.ClipboardManager
 import com.cross.sync.clipboard.domain.entity.CopiedData
+import com.cross.sync.setting.domain.SettingPreferencesStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -35,7 +36,9 @@ import kotlin.time.ExperimentalTime
  * Desktop clipboard manager with improved handling for formatted text (HTML/RTF), images and files.
  * Includes memory optimizations: LRU cache, downscaled image hashing, adaptive polling.
  */
-class DesktopClipboardManager() : ClipboardManager {
+class DesktopClipboardManager(
+    private val settingPreferencesStore: SettingPreferencesStore
+) : ClipboardManager {
     private val clipboard: Clipboard = Toolkit.getDefaultToolkit().systemClipboard
 
     // Synchronized LRU cache for clipboard data
@@ -67,6 +70,13 @@ class DesktopClipboardManager() : ClipboardManager {
                     getData()
                 } catch (e: Exception) {
                     null
+                }
+                val isExcludedApplication = currentData?.applicationId
+                    ?.let(settingPreferencesStore::isApplicationExcluded)
+                    ?: false
+
+                if (isExcludedApplication) {
+                    continue
                 }
 
                 if (currentData != null && currentData != lastData) {

@@ -1,8 +1,10 @@
 package com.cross.sync.syncing.network
 
 import com.cross.sync.clipboard.domain.entity.CopiedData
+import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.entity.DeviceData
+import com.cross.sync.syncing.domain.entity.SyncSettingsKeys
 import com.cross.sync.syncing.domain.repository.DeviceRepository
 import com.cross.sync.syncing.network.crypto.CryptoEngine
 import com.cross.sync.syncing.network.model.CopiedDataDto
@@ -10,6 +12,7 @@ import com.cross.sync.syncing.network.model.DataPackage
 import com.cross.sync.syncing.network.model.DeviceDataDto
 import com.cross.sync.syncing.network.model.QrConnectionConfig
 import com.cross.sync.syncing.network.model.RefreshRequest
+import com.cross.sync.syncing.network.model.SyncPayloadDto
 import com.cross.sync.syncing.network.model.TokenResponse
 import com.cross.sync.syncing.network.model.toDomain
 import com.cross.sync.syncing.network.model.toDto
@@ -54,6 +57,8 @@ class ClipboardClient(
     private var client: HttpClient? = null
     private var config: QrConnectionConfig? = null
     private val messagesFlow = MutableSharedFlow<CopiedData>(1)
+    private val categoryFlow = MutableSharedFlow<Category>(1)
+    private val categoryBindingFlow = MutableSharedFlow<CategoryBinding>(1)
 
     private val connectedState = MutableStateFlow<ClientConnectState>(ClientConnectState.Idle)
 
@@ -64,8 +69,8 @@ class ClipboardClient(
     ): Result<Unit> = runCatchingForApi {
         config = json.decodeFromString<QrConnectionConfig>(qrConnectionConfig)
 
-        setting[HOST] = config!!.ip
-        setting[PORT] = config!!.port
+        setting[SyncSettingsKeys.HOST] = config!!.ip
+        setting[SyncSettingsKeys.PORT] = config!!.port
 
         client = createHttpClient(json, deviceRepository, setting)
 
@@ -79,6 +84,9 @@ class ClipboardClient(
             )
         }.body<TokenResponse>()
 
+        setting[SyncSettingsKeys.CONNECTED_DESKTOP_NAME] = tokens.serverName ?: "Mac"
+        setting[SyncSettingsKeys.CONNECTED_DESKTOP_IP] = tokens.serverIp ?: config!!.ip
+
         deviceRepository.saveDevice(
             DeviceData(
                 id = deviceId,
@@ -88,6 +96,14 @@ class ClipboardClient(
                 secretKey = config!!.secretKey
             )
         )
+    }
+
+    fun disconnect() {
+        runCatching {
+            client?.close()
+        }
+        client = null
+        connectedState.value = ClientConnectState.Idle
     }
 
     suspend fun connect(): Flow<ClientConnectState> {
@@ -126,15 +142,39 @@ class ClipboardClient(
                             data.encryptedContent,
                             secretKey = device.secretKey
                         ).onSuccess {
-                            val message =
-                                json.decodeFromString<CopiedDataDto>(it)
-                            Napier.log(
-                                io.github.aakira.napier.LogLevel.INFO,
-                                "Websocket",
-                                message = "encrypt data = $message"
-                            )
+                            val payload = runCatching {
+                                json.decodeFromString<SyncPayloadDto>(it)
+                            }.getOrNull()
 
-                            messagesFlow.emit(message.toDomain())
+                            when (payload) {
+                                is SyncPayloadDto.CopiedDataPayload -> {
+                                    messagesFlow.emit(payload.data.toDomain())
+                                }
+
+                                is SyncPayloadDto.CategoryPayload -> {
+                                    categoryFlow.emit(
+                                        Category(
+                                            id = payload.categoryId,
+                                            name = payload.name
+                                        )
+                                    )
+                                }
+
+                                is SyncPayloadDto.CategoryBindingPayload -> {
+                                    categoryBindingFlow.emit(
+                                        CategoryBinding(
+                                            categoryId = payload.categoryId,
+                                            copiedDataId = payload.copiedDataId
+                                        )
+                                    )
+                                }
+
+                                null -> {
+                                    // Backward compatibility: previously only CopiedDataDto was sent.
+                                    val message = json.decodeFromString<CopiedDataDto>(it)
+                                    messagesFlow.emit(message.toDomain())
+                                }
+                            }
                         }.onFailure {
 
                         }
@@ -166,7 +206,8 @@ class ClipboardClient(
         client ?: throw ClientException()
         val device = deviceRepository.getDeviceById(null) ?: throw Exception("Device not found")
         client!!.post(SEND_ROUTE) {
-            val data = json.encodeToString(copiedData.toDto())
+            val payload = SyncPayloadDto.CopiedDataPayload(copiedData.toDto())
+            val data = json.encodeToString<SyncPayloadDto>(payload)
 
             setBody(
                 DataPackage(cryptoEngine.encrypt(data, secretKey = device.secretKey))
@@ -178,15 +219,25 @@ class ClipboardClient(
         return messagesFlow
     }
 
+    suspend fun observeCategories(): Flow<Category> {
+        return categoryFlow
+    }
+
+    suspend fun observeCategoryBindings(): Flow<CategoryBinding> {
+        return categoryBindingFlow
+    }
+
     fun observeConnectedState(): StateFlow<ClientConnectState> {
         return connectedState
     }
 
-    companion object {
-        const val HOST: String = "host"
-        const val PORT: String = "port"
-    }
+    companion object {}
 }
+
+data class CategoryBinding(
+    val categoryId: Long,
+    val copiedDataId: Long
+)
 
 private fun createHttpClient(
     json: Json,
@@ -246,8 +297,8 @@ private fun createHttpClient(
         defaultRequest {
             url {
                 protocol = URLProtocol.HTTP
-                this.host = setting[ClipboardClient.HOST, ""]
-                this.port = setting[ClipboardClient.PORT, 0]
+                this.host = setting[SyncSettingsKeys.HOST, ""]
+                this.port = setting[SyncSettingsKeys.PORT, 0]
             }
             headers.appendIfNameAbsent(HttpHeaders.ContentType, "application/json")
         }

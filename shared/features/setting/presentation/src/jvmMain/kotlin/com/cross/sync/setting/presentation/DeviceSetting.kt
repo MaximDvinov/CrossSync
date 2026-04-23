@@ -44,19 +44,20 @@ import qrgenerator.qrkitpainter.solidBrush
 
 @Composable
 fun DeviceSetting(
-    state: SettingState, onCancel: () -> Unit, onDelete: () -> Unit, onAddDevice: () -> Unit
+    state: SettingState,
+    onCancel: () -> Unit,
+    onDelete: (DeviceData) -> Unit,
+    onAddDevice: () -> Unit
 ) {
     Column(
-        modifier = Modifier.padding(horizontal = 20.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         BasicText(
             text = "Device Sync",
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
             style = AppTheme.typography.semiBold14.copy(color = AppTheme.colors.onSurface)
         )
-
-
 
         Column(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
@@ -74,7 +75,11 @@ fun DeviceSetting(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 state.devices.forEach { device ->
-                    DeviceItem(modifier = Modifier, device = device) {}
+                    DeviceItem(
+                        modifier = Modifier,
+                        device = device,
+                        onDelete = { onDelete(device) }
+                    )
                 }
 
                 RoundedIconButton(
@@ -256,8 +261,6 @@ fun DeviceItem(
         )
     }
 }
-
-
 
 
 

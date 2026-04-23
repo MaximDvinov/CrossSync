@@ -1,6 +1,7 @@
 package com.cross.sync.syncing.network
 
 import com.cross.sync.clipboard.domain.entity.CopiedData
+import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.syncing.domain.entity.DeviceData
 import com.cross.sync.syncing.domain.entity.PairingState
 import com.cross.sync.syncing.domain.entity.ServerEvent
@@ -15,6 +16,7 @@ import com.cross.sync.syncing.network.model.DataPackage
 import com.cross.sync.syncing.network.model.DeviceDataDto
 import com.cross.sync.syncing.network.model.QrConnectionConfig
 import com.cross.sync.syncing.network.model.RefreshRequest
+import com.cross.sync.syncing.network.model.SyncPayloadDto
 import com.cross.sync.syncing.network.model.TokenResponse
 import com.cross.sync.syncing.network.model.toDomain
 import com.cross.sync.syncing.network.model.toDto
@@ -57,17 +59,20 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 import java.net.Inet4Address
 import java.net.Inet6Address
+import java.net.InetAddress
 import java.net.NetworkInterface
 import java.util.Collections
 
 class LocalServer(
     private val cryptoEngine: CryptoEngine,
-    private val deviceRepository: DeviceRepository
+    private val deviceRepository: DeviceRepository,
+    private val localClipboardRepository: LocalClipboardRepository
 ) : ClipboardServer {
     private val coroutineScope: CoroutineScope =
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -83,6 +88,7 @@ class LocalServer(
     private val pairingState: MutableStateFlow<PairingState> = MutableStateFlow(PairingState.Idle())
 
     private var actualQrCodeConfig: QrConnectionConfig? = null
+    private var activeQrCodeJson: String? = null
 
     override fun start(): Pair<StateFlow<ServerState>, SharedFlow<ServerEvent?>> {
         if (server != null) return serverState to serverEvent
@@ -150,13 +156,23 @@ class LocalServer(
                     accessToken = access,
                     refreshToken = refresh
                 )
-                pairingState.emit(PairingState.Connected(device))
+                emitPairingConnected(device)
 
                 serverEvent.emit(ServerEvent.AddedDevice(device))
 
+                val pairedServerIp = actualQrCodeConfig?.ip ?: getIpAddress()
                 actualQrCodeConfig = null
+                activeQrCodeJson = null
 
-                call.respond(status = HttpStatusCode.OK, TokenResponse(access, refresh))
+                call.respond(
+                    status = HttpStatusCode.OK,
+                    message = TokenResponse(
+                        accessToken = access,
+                        refreshToken = refresh,
+                        serverName = resolveServerName(),
+                        serverIp = pairedServerIp
+                    )
+                )
             } else {
                 call.respond(HttpStatusCode.BadRequest, ConnectionRespond(false))
             }
@@ -200,8 +216,15 @@ class LocalServer(
                 val data = call.receive<DataPackage>()
                 cryptoEngine.decrypt(data.encryptedContent, secretKey = device.secretKey)
                     .onSuccess {
-                        val message = json.decodeFromString<CopiedDataDto>(it)
-                        serverEvent.emit(ServerEvent.ReceivedCopiedData(message.toDomain()))
+                        val payload = runCatching {
+                            json.decodeFromString<SyncPayloadDto>(it)
+                        }.getOrNull()
+
+                        val copiedData = when (payload) {
+                            is SyncPayloadDto.CopiedDataPayload -> payload.data.toDomain()
+                            else -> json.decodeFromString<CopiedDataDto>(it).toDomain()
+                        }
+                        serverEvent.emit(ServerEvent.ReceivedCopiedData(copiedData))
                     }
 
                 call.respond(HttpStatusCode.OK)
@@ -217,14 +240,24 @@ class LocalServer(
                 )
 
                 connections[device.id] = this
+                emitPairingConnected(device)
 
                 try {
+                    sendSnapshot(device, this)
+
                     incoming.consumeEach {
                         val data = receiveDeserialized<DataPackage>()
                         cryptoEngine.decrypt(data.encryptedContent, secretKey = device.secretKey)
                             .onSuccess {
-                                val message = json.decodeFromString<CopiedDataDto>(it)
-                                serverEvent.emit(ServerEvent.ReceivedCopiedData(message.toDomain()))
+                                val payload = runCatching {
+                                    json.decodeFromString<SyncPayloadDto>(it)
+                                }.getOrNull()
+
+                                val copiedData = when (payload) {
+                                    is SyncPayloadDto.CopiedDataPayload -> payload.data.toDomain()
+                                    else -> json.decodeFromString<CopiedDataDto>(it).toDomain()
+                                }
+                                serverEvent.emit(ServerEvent.ReceivedCopiedData(copiedData))
                             }
                     }
                 } catch (e: ClosedReceiveChannelException) {
@@ -232,6 +265,9 @@ class LocalServer(
                 } catch (e: Throwable) {
                     println("onError ${closeReason.await()}")
                     e.printStackTrace()
+                } finally {
+                    connections.remove(device.id)
+                    emitPairingByActiveConnections()
                 }
             }
         }
@@ -249,8 +285,11 @@ class LocalServer(
     }
 
     override suspend fun sendCopiedDataWebSocket(message: CopiedData): Result<Unit> {
+        if (!message.isSyncableText()) return Result.success(Unit)
+
         connections.forEach { (deviceId, session) ->
-            val json = json.encodeToString(message.toDto())
+            val payload = SyncPayloadDto.CopiedDataPayload(message.toDto())
+            val json = json.encodeToString<SyncPayloadDto>(payload)
             val device = deviceId?.let { deviceRepository.getDeviceById(it) }
             val encryptedMessage =
                 device?.secretKey?.let { cryptoEngine.encrypt(json, it) }
@@ -262,6 +301,61 @@ class LocalServer(
         }
 
         return Result.success(Unit)
+    }
+
+    private suspend fun sendSnapshot(
+        device: DeviceData,
+        session: DefaultWebSocketServerSession
+    ) {
+        val categories = localClipboardRepository.observeCategories().first()
+        categories.forEach { category ->
+            sendPayload(
+                session = session,
+                secretKey = device.secretKey,
+                payload = SyncPayloadDto.CategoryPayload(
+                    categoryId = category.id,
+                    name = category.name
+                )
+            )
+        }
+
+        val copiedData = localClipboardRepository.getAllCopiedData()
+            .filter { it.isSyncableText() }
+            .sortedBy { it.dateTime }
+
+        copiedData.forEach { data ->
+            sendPayload(
+                session = session,
+                secretKey = device.secretKey,
+                payload = SyncPayloadDto.CopiedDataPayload(data.toDto())
+            )
+        }
+
+        val syncedIds = copiedData.mapTo(mutableSetOf()) { it.id }
+        categories.forEach { category ->
+            localClipboardRepository.observeCopiedDataByCategory(category.id).first()
+                .filter { it.id in syncedIds }
+                .forEach { data ->
+                    sendPayload(
+                        session = session,
+                        secretKey = device.secretKey,
+                        payload = SyncPayloadDto.CategoryBindingPayload(
+                            categoryId = category.id,
+                            copiedDataId = data.id
+                        )
+                    )
+                }
+        }
+    }
+
+    private suspend fun sendPayload(
+        session: DefaultWebSocketServerSession,
+        secretKey: String,
+        payload: SyncPayloadDto
+    ) {
+        val plain = json.encodeToString<SyncPayloadDto>(payload)
+        val encrypted = cryptoEngine.encrypt(plain, secretKey)
+        session.sendSerialized(DataPackage(encrypted))
     }
 
     override fun observeServerState(): StateFlow<ServerState> {
@@ -278,8 +372,12 @@ class LocalServer(
 
     override fun stop() {
         server?.stop(1000, 2000)
+        connections.clear()
+        activeQrCodeJson = null
+        actualQrCodeConfig = null
         coroutineScope.launch {
             serverState.emit(ServerState.Stopped())
+            pairingState.emit(PairingState.Idle())
         }
         server = null
     }
@@ -288,6 +386,7 @@ class LocalServer(
         val qrConnectionConfig = generateQqCode()
         val jsonQrData = json.encodeToString(qrConnectionConfig)
         actualQrCodeConfig = qrConnectionConfig
+        activeQrCodeJson = jsonQrData
 
         coroutineScope.launch {
             pairingState.emit(PairingState.QrCodeGenerated(jsonQrData))
@@ -308,6 +407,40 @@ class LocalServer(
             pairingKey = (10000..99999).random().toString()
         )
     }
+
+    private suspend fun emitPairingConnected(device: DeviceData) {
+        pairingState.emit(PairingState.Connected(device))
+    }
+
+    private suspend fun emitPairingByActiveConnections() {
+        val firstConnectedDeviceId = connections.keys.firstOrNull()
+        if (firstConnectedDeviceId != null) {
+            val device = deviceRepository.getDeviceById(firstConnectedDeviceId)
+            if (device != null) {
+                pairingState.emit(PairingState.Connected(device))
+                return
+            }
+        }
+
+        val activeQr = activeQrCodeJson
+        if (activeQr != null) {
+            pairingState.emit(PairingState.QrCodeGenerated(activeQr))
+        } else {
+            pairingState.emit(PairingState.Idle())
+        }
+    }
+}
+
+private fun resolveServerName(): String {
+    val localHostName = runCatching { InetAddress.getLocalHost().hostName }.getOrNull()
+    return localHostName
+        ?.substringBefore('.')
+        ?.takeIf { it.isNotBlank() }
+        ?: "Mac"
+}
+
+private fun CopiedData.isSyncableText(): Boolean {
+    return this is CopiedData.Text || this is CopiedData.FormattedText
 }
 
 private fun Application.loggerInit() {

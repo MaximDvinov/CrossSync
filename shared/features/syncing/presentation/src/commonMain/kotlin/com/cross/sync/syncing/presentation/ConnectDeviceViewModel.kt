@@ -18,7 +18,10 @@ import kotlinx.coroutines.launch
 data class ConnectDeviceState(
     val connectState: ClientConnectState,
     val isSendingCopiedData: Boolean = false,
-    val sendError: String? = null
+    val sendErrorMessage: String? = null,
+    val isSendErrorVisible: Boolean = false,
+    val connectionErrorMessage: String? = null,
+    val isConnectionErrorVisible: Boolean = false
 )
 
 class ConnectDeviceViewModel(
@@ -39,18 +42,16 @@ class ConnectDeviceViewModel(
             connectToServerUseCase()
                 .onSuccess { flow ->
                     flow.collect { connectState ->
-                        _state.update { it.copy(connectState = connectState) }
+                        updateConnectionState(connectState)
                     }
                 }
                 .onFailure { exception ->
                     if (exception is DeviceNotInitializedException) {
-                        _state.update { it.copy(connectState = ClientConnectState.Idle) }
+                        updateConnectionState(ClientConnectState.Idle)
                         return@onFailure
                     }
 
-                    _state.update {
-                        it.copy(connectState = ClientConnectState.Error(exception.toHumanMessage()))
-                    }
+                    updateConnectionState(ClientConnectState.Error(exception.toHumanMessage()))
                 }
         }
     }
@@ -58,7 +59,7 @@ class ConnectDeviceViewModel(
     fun pair(deviceId: String, deviceName: String, qrCode: String) {
         viewModelScope.launch(Dispatchers.Main) {
             if (_state.value.connectState != ClientConnectState.Connecting) {
-                _state.update { it.copy(connectState = ClientConnectState.Connecting) }
+                updateConnectionState(ClientConnectState.Connecting)
                 pairToServerUseCase(
                     deviceId = deviceId,
                     deviceName = deviceName,
@@ -67,21 +68,13 @@ class ConnectDeviceViewModel(
                     println("StartConnect")
                     connectToServerUseCase().onSuccess {
                         it.collect { connectState ->
-                            _state.update { it.copy(connectState = connectState) }
+                            updateConnectionState(connectState)
                         }
                     }.onFailure { exception ->
-                        _state.update {
-                            it.copy(
-                                connectState = ClientConnectState.Error(exception.toHumanMessage())
-                            )
-                        }
+                        updateConnectionState(ClientConnectState.Error(exception.toHumanMessage()))
                     }
                 }.onFailure { exception ->
-                    _state.update {
-                        it.copy(
-                            connectState = ClientConnectState.Error(exception.toHumanMessage())
-                        )
-                    }
+                    updateConnectionState(ClientConnectState.Error(exception.toHumanMessage()))
                 }
             }
         }
@@ -92,7 +85,8 @@ class ConnectDeviceViewModel(
             _state.update {
                 it.copy(
                     isSendingCopiedData = true,
-                    sendError = null
+                    sendErrorMessage = null,
+                    isSendErrorVisible = false
                 )
             }
 
@@ -101,7 +95,8 @@ class ConnectDeviceViewModel(
                     _state.update {
                         it.copy(
                             isSendingCopiedData = false,
-                            sendError = null
+                            sendErrorMessage = null,
+                            isSendErrorVisible = false
                         )
                     }
                 }
@@ -109,7 +104,8 @@ class ConnectDeviceViewModel(
                     _state.update {
                         it.copy(
                             isSendingCopiedData = false,
-                            sendError = exception.message ?: "Не удалось отправить данные на Mac"
+                            sendErrorMessage = exception.message ?: "Не удалось отправить данные",
+                            isSendErrorVisible = true
                         )
                     }
                 }
@@ -121,12 +117,47 @@ class ConnectDeviceViewModel(
             val currentClipboardData = getCopiedDataUseCase()
             if (currentClipboardData == null) {
                 _state.update {
-                    it.copy(sendError = "Буфер обмена телефона пуст")
+                    it.copy(
+                        sendErrorMessage = "Буфер обмена устройства пуст",
+                        isSendErrorVisible = true
+                    )
                 }
                 return@launch
             }
 
             sendCopiedData(currentClipboardData)
+        }
+    }
+
+    fun dismissSendError() {
+        _state.update {
+            it.copy(isSendErrorVisible = false)
+        }
+    }
+
+    fun dismissConnectionError() {
+        _state.update {
+            it.copy(isConnectionErrorVisible = false)
+        }
+    }
+
+    private fun updateConnectionState(connectState: ClientConnectState) {
+        val errorMessage = when (connectState) {
+            is ClientConnectState.Disconnected -> {
+                val reason = connectState.cause?.message ?: "Не удалось подключиться к серверу"
+                "Ошибка подключения: $reason"
+            }
+
+            is ClientConnectState.Error -> "Ошибка подключения: ${connectState.message}"
+            else -> null
+        }
+
+        _state.update {
+            it.copy(
+                connectState = connectState,
+                connectionErrorMessage = errorMessage,
+                isConnectionErrorVisible = errorMessage != null
+            )
         }
     }
 

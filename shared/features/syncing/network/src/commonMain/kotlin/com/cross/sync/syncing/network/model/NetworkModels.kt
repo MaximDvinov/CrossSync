@@ -31,7 +31,9 @@ data class ConnectionRespond(
 @Serializable
 data class TokenResponse(
     val accessToken: String,
-    val refreshToken: String
+    val refreshToken: String,
+    val serverName: String? = null,
+    val serverIp: String? = null
 )
 
 @Serializable

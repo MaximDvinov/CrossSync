@@ -8,6 +8,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,8 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.cross.sync.components.TopBar
+import com.cross.sync.components.button.ButtonsDefaults
 import com.cross.sync.components.button.RoundedIconButton
+import com.cross.sync.components.button.RoundedTextButton
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.Close
@@ -35,10 +40,13 @@ import org.publicvalue.multiplatform.qrcode.ScannerWithPermissions
 fun ConnectionScreen(
     modifier: Modifier = Modifier,
     connectDeviceViewModel: ConnectDeviceViewModel = koinInject(),
+    contentPadding: PaddingValues = PaddingValues(0.dp),
     onBack: () -> Unit
 ) {
     val state by connectDeviceViewModel.state.collectAsState()
     val (statusText, isError) = connectionStatusText(state.connectState)
+    val activeError = state.connectionErrorMessage
+        ?.takeIf { state.isConnectionErrorVisible }
 
     Box(
         modifier = modifier
@@ -62,22 +70,32 @@ fun ConnectionScreen(
         TopBar(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(
+                    start = 12.dp,
+                    end = 12.dp,
+                    top = 12.dp + contentPadding.calculateTopPadding(),
+                    bottom = 12.dp
+                ),
             text = "Connection",
             rightAction = {
                 RoundedIconButton(
                     imageVector = AppTheme.icons.Close,
                     onClick = onBack,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(44.dp)
                 )
             }
         )
 
         AnimatedVisibility(
-            visible = statusText.isNotBlank(),
+            visible = statusText.isNotBlank() && !isError,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 20.dp),
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 20.dp,
+                    bottom = 20.dp + contentPadding.calculateBottomPadding()
+                ),
             enter = slideInVertically(animationSpec = tween(280)) { fullHeight -> fullHeight / 2 } + fadeIn(
                 animationSpec = tween(220)
             ),
@@ -99,6 +117,37 @@ fun ConnectionScreen(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+
+        if (activeError != null) {
+            Dialog(onDismissRequest = connectDeviceViewModel::dismissConnectionError) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(AppTheme.colors.background)
+                        .padding(16.dp)
+                ) {
+                    Column {
+                        BasicText(
+                            text = "Ошибка подключения",
+                            style = AppTheme.typography.semiBold16.copy(color = AppTheme.colors.primary)
+                        )
+                        BasicText(
+                            text = activeError,
+                            style = AppTheme.typography.medium14.copy(color = AppTheme.colors.onSurface),
+                            modifier = Modifier.padding(top = 10.dp, bottom = 14.dp)
+                        )
+                        RoundedTextButton(
+                            onClick = connectDeviceViewModel::dismissConnectionError,
+                            text = "OK",
+                            colors = ButtonsDefaults.buttonPadding(horizontal = 18.dp, vertical = 10.dp),
+                            textStyle = AppTheme.typography.semiBold14.copy(color = AppTheme.colors.onSurfaceVariant),
+                            modifier = Modifier.align(Alignment.End)
+                        )
+                    }
+                }
             }
         }
     }

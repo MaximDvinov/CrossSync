@@ -21,6 +21,18 @@ interface ClipboardDao {
     @Query("SELECT * FROM copied_data ORDER BY dateTime DESC")
     fun getAllCopiedDataFlow(): Flow<List<CopiedDataEntity>>
 
+    @Query(
+        """
+        SELECT * FROM copied_data cd
+        WHERE NOT EXISTS (
+            SELECT 1 FROM CategoryCopiedDataCrossRef c
+            WHERE c.copiedDataId = cd.copiedDataId
+        )
+        ORDER BY dateTime DESC
+        """
+    )
+    fun getUncategorizedCopiedDataFlow(): Flow<List<CopiedDataEntity>>
+
     @Query("SELECT * FROM copied_data ORDER BY dateTime DESC")
     suspend fun getAllCopiedData(): List<CopiedDataEntity>
 
@@ -29,4 +41,22 @@ interface ClipboardDao {
 
     @Query("DELETE FROM copied_data")
     suspend fun deleteAll()
+
+    @Query("DELETE FROM copied_data WHERE dateTime < :olderThanEpochMillis")
+    suspend fun deleteOlderThan(olderThanEpochMillis: Long)
+
+    @Query(
+        """
+        DELETE FROM copied_data
+        WHERE copiedDataId IN (
+            SELECT cd.copiedDataId
+            FROM copied_data cd
+            WHERE NOT EXISTS (
+                SELECT 1 FROM CategoryCopiedDataCrossRef c
+                WHERE c.copiedDataId = cd.copiedDataId
+            )
+        )
+        """
+    )
+    suspend fun deleteUncategorized()
 }

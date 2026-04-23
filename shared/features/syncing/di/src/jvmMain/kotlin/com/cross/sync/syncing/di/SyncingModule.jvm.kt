@@ -4,6 +4,7 @@ import com.cross.sync.syncing.data.repository.SyncRepositoryImpl
 import com.cross.sync.syncing.domain.repository.ClipboardServer
 import com.cross.sync.syncing.domain.repository.SyncRepository
 import com.cross.sync.syncing.domain.usecases.AddDeviceUseCase
+import com.cross.sync.syncing.domain.usecases.DeleteDeviceUseCase
 import com.cross.sync.syncing.domain.usecases.ObserveDevicesUseCase
 import com.cross.sync.syncing.domain.usecases.ObservePairingUseCase
 import com.cross.sync.syncing.domain.usecases.StartSyncUseCase
@@ -22,6 +23,7 @@ actual val platformSyncingModule: Module
         singleOf(::LocalServer) bind ClipboardServer::class
         singleOf(::SyncRepositoryImpl) bind SyncRepository::class
         singleOf(::AddDeviceUseCase)
+        singleOf(::DeleteDeviceUseCase)
         singleOf(::ObserveDevicesUseCase)
         singleOf(::ObservePairingUseCase)
         singleOf(::StartSyncUseCase)

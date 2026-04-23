@@ -19,6 +19,10 @@ class DeviceRepositoryImpl(
         return device?.toData()
     }
 
+    override suspend fun deleteDevice(id: String) {
+        deviceDao.deleteById(id)
+    }
+
     override fun observeDevices(): Flow<List<DeviceData>> {
         return deviceDao.getAllDevices().map {
             it.map { entity -> entity.toData() }

@@ -39,6 +39,7 @@ class StartSyncUseCase(
         launch {
             systemClipboardRepository.observeData().collect {
                 val message = it ?: return@collect
+                if (!message.isSyncableText()) return@collect
                 val now = System.currentTimeMillis()
                 val key = message.normalizedClipboardKey()
 
@@ -77,6 +78,10 @@ class StartSyncUseCase(
         private const val SUPPRESS_OUTBOUND_WINDOW_MS = 3_000L
         private const val OUTBOUND_DEDUP_WINDOW_MS = 2_000L
     }
+}
+
+private fun CopiedData.isSyncableText(): Boolean {
+    return this is CopiedData.Text || this is CopiedData.FormattedText
 }
 
 private fun CopiedData.normalizedClipboardKey(): String {

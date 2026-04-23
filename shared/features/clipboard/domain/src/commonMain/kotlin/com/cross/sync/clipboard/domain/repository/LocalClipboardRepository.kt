@@ -19,8 +19,11 @@ interface LocalClipboardRepository {
 
     suspend fun getAllCopiedData(): List<CopiedData>
     suspend fun clearAllCopiedDataInCategory(categoryId: Long?)
+    suspend fun clearUncategorizedCopiedData()
+    suspend fun clearCopiedDataOlderThan(olderThanEpochMillis: Long)
 
     fun observeCopiedData(): Flow<List<CopiedData>>
     fun observeCopiedDataByCategory(categoryId: Long): Flow<List<CopiedData>>
+    fun observeUncategorizedCopiedData(): Flow<List<CopiedData>>
     fun observeCategories(): Flow<List<Category>>
 }

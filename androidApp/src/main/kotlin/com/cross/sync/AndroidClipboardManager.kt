@@ -17,13 +17,19 @@ class AndroidClipboardManager(
     private val state = MutableStateFlow<CopiedData?>(null)
     private var isInitialized = false
     private var skipNextClipboardCallback = false
+    private var suppressClipboardEchoUntilMillis: Long = 0L
+    private var suppressClipboardEchoText: String? = null
 
     private val clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
         if (skipNextClipboardCallback) {
             skipNextClipboardCallback = false
             return@OnPrimaryClipChangedListener
         }
-        state.value = readClipboardData()
+        val clipboardData = readClipboardData()
+        if (clipboardData is CopiedData.Text && shouldSuppressEcho(clipboardData.text)) {
+            return@OnPrimaryClipChangedListener
+        }
+        state.value = clipboardData
     }
 
     override fun observeData(): StateFlow<CopiedData?> {
@@ -43,6 +49,7 @@ class AndroidClipboardManager(
             ClipData.newPlainText("CrossSync", text)
         )
 
+        registerClipboardEchoSuppression(text)
         state.value = data
     }
 
@@ -76,5 +83,22 @@ class AndroidClipboardManager(
             dateTime = Clock.System.now(),
             applicationId = "android.system"
         )
+    }
+
+    private fun registerClipboardEchoSuppression(text: String?) {
+        suppressClipboardEchoText = text?.trim()?.takeIf { it.isNotEmpty() }
+        suppressClipboardEchoUntilMillis = System.currentTimeMillis() + CLIPBOARD_ECHO_SUPPRESSION_MS
+    }
+
+    private fun shouldSuppressEcho(text: String): Boolean {
+        val normalized = text.trim()
+        if (normalized.isEmpty()) return false
+        val suppressionText = suppressClipboardEchoText ?: return false
+        if (System.currentTimeMillis() > suppressClipboardEchoUntilMillis) return false
+        return normalized == suppressionText
+    }
+
+    private companion object {
+        private const val CLIPBOARD_ECHO_SUPPRESSION_MS = 2500L
     }
 }

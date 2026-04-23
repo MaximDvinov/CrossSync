@@ -11,6 +11,8 @@ import com.cross.sync.clipboard.domain.usecase.AddCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.AddCopiedDataToCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.AddCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.ClearCopiedDataByIdUseCase
+import com.cross.sync.clipboard.domain.usecase.ClearCopiedDataOlderThanUseCase
+import com.cross.sync.clipboard.domain.usecase.ClearUncategorizedCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.DeleteCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.DeleteCopiedDataByIdUseCase
 import com.cross.sync.clipboard.domain.usecase.GetApplicationsUseCase
@@ -21,6 +23,7 @@ import com.cross.sync.clipboard.domain.usecase.ObserveCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.ObserveCopiedDataByCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.ObserveCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.ObserveCurrentCopiedDataUseCase
+import com.cross.sync.clipboard.domain.usecase.ObserveUncategorizedCopiedDataUseCase
 import com.cross.sync.clipboard.domain.usecase.RenameCategoryUseCase
 import com.cross.sync.clipboard.domain.usecase.SaveApplicationsUseCase
 import com.cross.sync.clipboard.presentation.ClipboardViewModel
@@ -41,9 +44,12 @@ val clipboardModule: Module = module {
     singleOf(::DeleteCopiedDataByIdUseCase)
     singleOf(::InitClipboardManagerUseCase)
     singleOf(::ObserveCopiedDataUseCase)
+    singleOf(::ObserveUncategorizedCopiedDataUseCase)
     singleOf(::ObserveCurrentCopiedDataUseCase)
     singleOf(::GetCopiedDataUseCase)
     singleOf(::ClearCopiedDataByIdUseCase)
+    singleOf(::ClearCopiedDataOlderThanUseCase)
+    singleOf(::ClearUncategorizedCopiedDataUseCase)
 
     singleOf(::AddCategoryUseCase)
     singleOf(::DeleteCategoryUseCase)

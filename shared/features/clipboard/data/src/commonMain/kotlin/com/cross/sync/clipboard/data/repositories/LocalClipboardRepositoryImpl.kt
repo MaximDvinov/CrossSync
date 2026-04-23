@@ -72,6 +72,14 @@ class LocalClipboardRepositoryImpl(
 
     }
 
+    override suspend fun clearUncategorizedCopiedData() {
+        clipboardDao.deleteUncategorized()
+    }
+
+    override suspend fun clearCopiedDataOlderThan(olderThanEpochMillis: Long) {
+        clipboardDao.deleteOlderThan(olderThanEpochMillis)
+    }
+
     override suspend fun getAllCopiedData(): List<CopiedData> {
         return clipboardDao.getAllCopiedData().map { it.toDomain() }
     }
@@ -88,6 +96,12 @@ class LocalClipboardRepositoryImpl(
                 it.copiedDataList.map { entity -> entity.toDomain() }
                     .sortedByDescending { entity -> entity.dateTime }
             }
+    }
+
+    override fun observeUncategorizedCopiedData(): Flow<List<CopiedData>> {
+        return clipboardDao.getUncategorizedCopiedDataFlow().map { data ->
+            data.map { it.toDomain() }
+        }
     }
 
     override fun observeCategories(): Flow<List<Category>> {
