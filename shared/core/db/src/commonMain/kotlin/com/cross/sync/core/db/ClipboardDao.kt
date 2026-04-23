@@ -42,7 +42,17 @@ interface ClipboardDao {
     @Query("DELETE FROM copied_data")
     suspend fun deleteAll()
 
-    @Query("DELETE FROM copied_data WHERE dateTime < :olderThanEpochMillis")
+    @Query(
+        """
+        DELETE FROM copied_data
+        WHERE dateTime < :olderThanEpochMillis
+          AND NOT EXISTS (
+            SELECT 1
+            FROM CategoryCopiedDataCrossRef c
+            WHERE c.copiedDataId = copied_data.copiedDataId
+          )
+        """
+    )
     suspend fun deleteOlderThan(olderThanEpochMillis: Long)
 
     @Query(

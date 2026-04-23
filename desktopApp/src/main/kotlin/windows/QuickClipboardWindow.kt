@@ -172,8 +172,7 @@ fun ApplicationScope.QuickClipboardWindow(
                         onOpenFullApp = openHome,
                         isLargeControls = false,
                         maxVisibleItems = quickAccessHistorySize,
-                        showCategoryBar = false,
-                        showClearAllButton = false,
+                        showClearAllButton = true,
 //                        headerContent = {
 //                            ClipboardSectionHeader(
 //                                title = "Quick Access",
