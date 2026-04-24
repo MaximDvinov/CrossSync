@@ -88,6 +88,9 @@ compose.desktop {
         mainClass = desktopMainClass
 
         jvmArgs += desktopJvmArgs
+        buildTypes.release.proguard {
+            isEnabled.set(false)
+        }
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
