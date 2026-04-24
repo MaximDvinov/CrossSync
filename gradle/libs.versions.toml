@@ -7,6 +7,7 @@ ddPlist = "1.28"
 encodingBase64 = "1.2.3"
 kotlin = "2.3.10"
 compose-hot-reload = "1.0.0"
+kobweb = "0.24.0"
 
 # Compose
 compose = "1.10.0" # BOM for JetBrains Compose libraries
@@ -71,7 +72,10 @@ ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", v
 foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }
 material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose" }
+compose-html = { module = "org.jetbrains.compose.html:html-core", version.ref = "compose" }
 components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose" }
+kobweb-core = { module = "com.varabyte.kobweb:kobweb-core", version.ref = "kobweb" }
+kobweb-silk = { module = "com.varabyte.kobweb:kobweb-silk", version.ref = "kobweb" }
 
 # UI
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
@@ -158,6 +162,7 @@ kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", vers
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
 compose-hot-reload = { id = "org.jetbrains.compose.hot-reload", version.ref = "compose-hot-reload" }
+kobweb-application = { id = "com.varabyte.kobweb.application", version.ref = "kobweb" }
 
 # Database
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

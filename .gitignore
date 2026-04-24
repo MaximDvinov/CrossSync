@@ -17,3 +17,5 @@ Pods/
 *yarn.lock
 /module_example
 /.gradle-local/
+/landing/.kobweb/server/
+/landing/.kobweb/site/

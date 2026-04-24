@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://maximdvinov.github.io/CrossSync/sitemap.xml

@@ -26,6 +26,7 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
 ## Module Structure
 - `desktopApp` - macOS desktop client.
 - `androidApp` - Android client.
+- `landing` - Kobweb landing page (GitHub Pages ready).
 - `shared` - shared business logic and feature/data/domain modules.
 - `docs` - screenshots and supporting materials.
 

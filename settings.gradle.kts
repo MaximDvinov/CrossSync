@@ -59,4 +59,4 @@ include(":shared:features:client")
 
 include(":androidApp")
 include(":desktopApp")
-
+include(":landing")

@@ -1,0 +1,13 @@
+server:
+  port: 8080
+  files:
+    dev:
+      contentRoot: "build/processedResources/js/main/public"
+      script: "build/kotlin-webpack/js/developmentExecutable/landing.js"
+    prod:
+      script: "build/kotlin-webpack/js/productionExecutable/landing.js"
+      siteRoot: ".kobweb/site"
+
+site:
+  title: "CrossSync"
+  routePrefix: "/CrossSync"
