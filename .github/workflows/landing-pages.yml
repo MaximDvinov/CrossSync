@@ -2,7 +2,7 @@ name: Landing Pages
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "dev" ]
     paths:
       - "landing/**"
       - "gradle/**"
@@ -41,7 +41,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Export Kobweb landing as static site
-        run: ./gradlew :landing:kobwebExport -PkobwebEnv=DEV -PkobwebRunLayout=FULLSTACK -PkobwebBuildTarget=RELEASE -PkobwebExportLayout=STATIC -PkobwebReuseServer=false
+        run: ./scripts/landing-pages.sh build
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

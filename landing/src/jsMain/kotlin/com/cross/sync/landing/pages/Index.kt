@@ -15,23 +15,29 @@ import org.jetbrains.compose.web.attributes.href
 import org.jetbrains.compose.web.attributes.src
 import org.jetbrains.compose.web.attributes.target
 import org.jetbrains.compose.web.dom.A
+import org.jetbrains.compose.web.dom.Footer as FooterTag
+import org.jetbrains.compose.web.dom.Header as HeaderTag
 import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.H1
 import org.jetbrains.compose.web.dom.H2
 import org.jetbrains.compose.web.dom.H3
 import org.jetbrains.compose.web.dom.Img
+import org.jetbrains.compose.web.dom.Main as MainTag
+import org.jetbrains.compose.web.dom.Nav as NavTag
 import org.jetbrains.compose.web.dom.P
+import org.jetbrains.compose.web.dom.Section as SectionTag
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 
 private const val PROJECT_URL = "https://github.com/MaximDvinov/CrossSync"
 private const val AUTHOR_URL = "https://github.com/MaximDvinov"
-private const val LOGO = "/assets/logo.svg"
 
 data class LandingCopy(
     val lang: String,
     val otherLangLabel: String,
     val otherLangUrl: String,
+    val otherLangCode: String,
+    val logoUrl: String,
     val title: String,
     val description: String,
     val eyebrow: String,
@@ -52,7 +58,9 @@ data class LandingCopy(
 val EnglishCopy = LandingCopy(
     lang = "en",
     otherLangLabel = "RU",
-    otherLangUrl = "/ru/",
+    otherLangUrl = "ru/",
+    otherLangCode = "ru",
+    logoUrl = "assets/logo.svg",
     title = "CrossSync",
     description = "Local clipboard synchronization between Android and Desktop without cloud services.",
     eyebrow = "Kotlin Multiplatform clipboard sync",
@@ -82,7 +90,9 @@ val EnglishCopy = LandingCopy(
 val RussianCopy = LandingCopy(
     lang = "ru",
     otherLangLabel = "EN",
-    otherLangUrl = "/",
+    otherLangUrl = "../",
+    otherLangCode = "en",
+    logoUrl = "../assets/logo.svg",
     title = "CrossSync",
     description = "Локальная синхронизация буфера обмена между Android и Desktop без облачных сервисов.",
     eyebrow = "Kotlin Multiplatform синхронизация буфера",
@@ -120,8 +130,8 @@ fun LandingPage(copy: LandingCopy) {
     PageMetadata(copy)
 
     Column(Modifier.css("min-height:100vh;width:100%;align-items:stretch;background:#F0F9FF;color:#00253C;font-family:'Segoe UI',Arial,sans-serif;")) {
-        Header(copy)
-        Column(Modifier.css("width:100%;max-width:1120px;margin:0 auto;padding:32px 20px 56px;gap:34px;box-sizing:border-box;align-items:stretch;")) {
+        SiteHeader(copy)
+        MainTag(Modifier.css("width:100%;max-width:1120px;margin:0 auto;padding:32px 20px 56px;gap:34px;box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;").toAttrs()) {
             Hero(copy)
             FeatureGrid(copy)
             Workflow(copy)
@@ -146,6 +156,7 @@ private fun PageMetadata(copy: LandingCopy) {
         setMeta("twitter:title", copy.title)
         setMeta("twitter:description", copy.description)
         setLink("canonical", canonical)
+        setJsonLd(copy)
     }
 }
 
@@ -169,18 +180,30 @@ private fun setLink(rel: String, href: String) {
     element.setAttribute("href", href)
 }
 
+private fun setJsonLd(copy: LandingCopy) {
+    val head = document.head ?: return
+    val element = head.querySelector("script#crosssync-structured-data") ?: document.createElement("script").also {
+        it.setAttribute("id", "crosssync-structured-data")
+        it.setAttribute("type", "application/ld+json")
+        head.appendChild(it)
+    }
+    element.textContent = copy.schemaJson()
+}
+
 @Composable
-private fun Header(copy: LandingCopy) {
-    Row(Modifier.css("width:100%;max-width:1120px;margin:0 auto;padding:18px 20px 0;box-sizing:border-box;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;")) {
+private fun SiteHeader(copy: LandingCopy) {
+    HeaderTag(Modifier.css("width:100%;max-width:1120px;margin:0 auto;padding:18px 20px 0;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;").toAttrs()) {
         Row(Modifier.css("align-items:center;gap:12px;")) {
-            Logo(44)
+            Logo(44, copy.logoUrl)
             Column {
                 P(Modifier.css("margin:0;font-size:18px;font-weight:700;color:#00253C;").toAttrs()) { Text("CrossSync") }
                 P(Modifier.css("margin:2px 0 0;font-size:13px;color:#7989A2;").toAttrs()) { Text("Android + Desktop") }
             }
         }
-        Row(Modifier.css("align-items:center;gap:10px;flex-wrap:wrap;")) {
-            NavLink(copy.otherLangLabel, copy.otherLangUrl)
+        NavTag(Modifier.css("display:flex;align-items:center;gap:10px;flex-wrap:wrap;").toAttrs {
+            attr("aria-label", if (copy.lang == "ru") "Основная навигация" else "Primary navigation")
+        }) {
+            NavLink(copy.otherLangLabel, copy.otherLangUrl, copy.otherLangCode)
             ButtonLink(copy.primaryAction, PROJECT_URL, filled = true)
         }
     }
@@ -188,10 +211,14 @@ private fun Header(copy: LandingCopy) {
 
 @Composable
 private fun Hero(copy: LandingCopy) {
-    Div(Modifier.css("width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:40px;align-items:center;").toAttrs()) {
+    SectionTag(Modifier.css("width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:40px;align-items:center;").toAttrs {
+        attr("aria-labelledby", "hero-title")
+    }) {
         Column(Modifier.css("width:100%;min-width:0;gap:16px;align-items:flex-start;")) {
             Pill(copy.eyebrow)
-            H1(Modifier.css("margin:0;font-size:44px;line-height:1.08;font-weight:800;color:#00253C;").toAttrs()) { Text(copy.title) }
+            H1(Modifier.css("margin:0;font-size:44px;line-height:1.08;font-weight:800;color:#00253C;").toAttrs {
+                attr("id", "hero-title")
+            }) { Text(copy.title) }
             P(Modifier.css("margin:0;font-size:22px;line-height:1.45;color:#00253C;max-width:680px;").toAttrs()) { Text(copy.description) }
             P(Modifier.css("margin:0;font-size:16px;line-height:1.7;color:#7989A2;max-width:680px;").toAttrs()) { Text(copy.lead) }
             Row(Modifier.css("gap:10px;flex-wrap:wrap;margin-top:8px;")) {
@@ -208,7 +235,7 @@ private fun AppPreview(copy: LandingCopy) {
     Column(Modifier.css("width:100%;min-width:0;justify-self:stretch;align-items:stretch;background:#FEFFFF;border:1px solid rgba(95,146,221,.22);border-radius:24px;box-shadow:0 16px 36px rgba(0,37,60,.10);overflow:hidden;box-sizing:border-box;")) {
         Row(Modifier.css("width:100%;height:58px;background:#DCECFF;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box;")) {
             Row(Modifier.css("align-items:center;gap:10px;color:#02609B;font-weight:700;")) {
-                Logo(28)
+                Logo(28, copy.logoUrl)
                 Span { Text("Clipboard") }
             }
             Span(Modifier.css("font-size:13px;color:#7989A2;").toAttrs()) { Text("Connected") }
@@ -228,8 +255,12 @@ private fun AppPreview(copy: LandingCopy) {
 
 @Composable
 private fun FeatureGrid(copy: LandingCopy) {
-    Column(Modifier.css("width:100%;gap:18px;align-items:stretch;")) {
-        H2(Modifier.css("margin:0;font-size:30px;line-height:1.2;color:#00253C;").toAttrs()) {
+    SectionTag(Modifier.css("width:100%;gap:18px;align-items:stretch;display:flex;flex-direction:column;").toAttrs {
+        attr("aria-labelledby", "features-title")
+    }) {
+        H2(Modifier.css("margin:0;font-size:30px;line-height:1.2;color:#00253C;").toAttrs {
+            attr("id", "features-title")
+        }) {
             Text(if (copy.lang == "ru") "Что умеет приложение" else "What the app does")
         }
         Div(Modifier.css("width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px;").toAttrs()) {
@@ -240,9 +271,13 @@ private fun FeatureGrid(copy: LandingCopy) {
 
 @Composable
 private fun Workflow(copy: LandingCopy) {
-    Div(Modifier.css("width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:18px;align-items:stretch;").toAttrs()) {
+    SectionTag(Modifier.css("width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:18px;align-items:stretch;").toAttrs {
+        attr("aria-labelledby", "workflow-title")
+    }) {
         Column(Modifier.css("width:100%;align-items:stretch;background:#FEFFFF;border:1px solid rgba(95,146,221,.18);border-radius:24px;padding:22px;box-shadow:0 16px 36px rgba(0,37,60,.08);gap:14px;box-sizing:border-box;")) {
-            H2(Modifier.css("margin:0;font-size:28px;line-height:1.2;color:#00253C;").toAttrs()) { Text(copy.workflowTitle) }
+            H2(Modifier.css("margin:0;font-size:28px;line-height:1.2;color:#00253C;").toAttrs {
+                attr("id", "workflow-title")
+            }) { Text(copy.workflowTitle) }
             P(Modifier.css("margin:0;color:#7989A2;font-size:16px;line-height:1.65;").toAttrs()) { Text(copy.workflowText) }
             copy.steps.forEachIndexed { index, step -> Step(index + 1, step) }
         }
@@ -263,7 +298,9 @@ private fun Workflow(copy: LandingCopy) {
 
 @Composable
 private fun Details(copy: LandingCopy) {
-    Div(Modifier.css("width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px;").toAttrs()) {
+    SectionTag(Modifier.css("width:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px;").toAttrs {
+        attr("aria-label", if (copy.lang == "ru") "Технические детали проекта" else "Project technical details")
+    }) {
         InfoBlock(copy.techTitle, "Kotlin Multiplatform, Compose Multiplatform, Ktor WebSocket, Koin, Room, SQLite.")
         InfoBlock(copy.statusTitle, if (copy.lang == "ru") "История, категории, Android-клиент, desktop-клиент, QR pairing и текстовая синхронизация." else "History, categories, Android client, desktop client, QR pairing, and text synchronization.")
         InfoBlock(copy.roadmapTitle, if (copy.lang == "ru") "Синхронизация изображений и файлов, расширение desktop-платформ, публичные релизы." else "Image and file sync, broader desktop support, and public release artifacts.")
@@ -272,7 +309,7 @@ private fun Details(copy: LandingCopy) {
 
 @Composable
 private fun Footer(copy: LandingCopy) {
-    Row(Modifier.css("width:100%;background:#DCECFF;border-radius:24px;padding:24px;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;box-sizing:border-box;")) {
+    FooterTag(Modifier.css("width:100%;background:#DCECFF;border-radius:24px;padding:24px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;box-sizing:border-box;").toAttrs()) {
         Column(Modifier.css("gap:8px;max-width:680px;")) {
             H2(Modifier.css("margin:0;color:#00253C;font-size:26px;").toAttrs()) { Text(copy.footerTitle) }
             P(Modifier.css("margin:0;color:#02609B;font-size:15px;line-height:1.55;").toAttrs()) { Text(copy.footerText) }
@@ -316,8 +353,8 @@ private fun InfoBlock(title: String, text: String) {
 }
 
 @Composable
-private fun Logo(size: Int) {
-    Img(src = LOGO, attrs = {
+private fun Logo(size: Int, url: String) {
+    Img(src = url, attrs = {
         alt("CrossSync logo")
         attr("width", size.toString())
         attr("height", size.toString())
@@ -357,13 +394,75 @@ private fun ButtonLink(label: String, url: String, filled: Boolean) {
 }
 
 @Composable
-private fun NavLink(label: String, url: String) {
+private fun NavLink(label: String, url: String, lang: String) {
     A(attrs = {
         href(url)
+        attr("hreflang", lang)
+        attr("aria-label", if (lang == "ru") "Русская версия" else "English version")
         attr("style", "display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;border-radius:12px;background:#FEFFFF;color:#02609B;text-decoration:none;font-weight:800;border:1px solid rgba(95,146,221,.20);")
     }) { Text(label) }
 }
 
 private fun Modifier.css(value: String): Modifier = attrsModifier {
     attr("style", value)
+}
+
+private fun LandingCopy.schemaJson(): String {
+    val canonical = if (lang == "ru") "https://maximdvinov.github.io/CrossSync/ru/" else "https://maximdvinov.github.io/CrossSync/"
+    val appName = title.json()
+    val appDescription = description.json()
+    val language = lang.json()
+
+    return """
+        {
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "WebSite",
+              "@id": "https://maximdvinov.github.io/CrossSync/#website",
+              "url": "https://maximdvinov.github.io/CrossSync/",
+              "name": $appName,
+              "inLanguage": $language
+            },
+            {
+              "@type": "SoftwareApplication",
+              "@id": "$canonical#software",
+              "name": $appName,
+              "description": $appDescription,
+              "url": "$canonical",
+              "applicationCategory": "UtilitiesApplication",
+              "operatingSystem": "Android, Desktop",
+              "softwareRequirements": "Local network connection",
+              "codeRepository": "$PROJECT_URL",
+              "isAccessibleForFree": true,
+              "inLanguage": $language,
+              "author": {
+                "@type": "Person",
+                "name": "Maxim Dvinov",
+                "url": "$AUTHOR_URL"
+              },
+              "publisher": {
+                "@type": "Person",
+                "name": "Maxim Dvinov",
+                "url": "$AUTHOR_URL"
+              }
+            }
+          ]
+        }
+    """.trimIndent()
+}
+
+private fun String.json(): String = buildString {
+    append('"')
+    this@json.forEach { char ->
+        when (char) {
+            '\\' -> append("\\\\")
+            '"' -> append("\\\"")
+            '\n' -> append("\\n")
+            '\r' -> append("\\r")
+            '\t' -> append("\\t")
+            else -> append(char)
+        }
+    }
+    append('"')
 }

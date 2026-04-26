@@ -53,6 +53,7 @@ class AndroidSettingViewModel(
             settings[SyncSettingsKeys.CONNECTED_DESKTOP_NAME] = ""
             settings[SyncSettingsKeys.CONNECTED_DESKTOP_IP] = ""
             settings[SyncSettingsKeys.HOST] = ""
+            settings[SyncSettingsKeys.HOSTS] = ""
             settings[SyncSettingsKeys.PORT] = 0
             syncRepository.disconnect()
         }

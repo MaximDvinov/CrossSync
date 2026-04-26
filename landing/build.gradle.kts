@@ -15,7 +15,7 @@ kobweb {
     app {
         index {
             description.set("CrossSync synchronizes clipboard history between Android and Desktop over a local network without cloud services.")
-            faviconPath.set("/assets/logo.svg")
+            faviconPath.set("/CrossSync/assets/logo.svg")
             head.add {
                 meta {
                     attributes["name"] = "robots"

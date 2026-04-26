@@ -161,6 +161,7 @@ class LocalServer(
                 serverEvent.emit(ServerEvent.AddedDevice(device))
 
                 val pairedServerIp = actualQrCodeConfig?.ip ?: getIpAddress()
+                val pairedServerIps = actualQrCodeConfig?.ipAddresses.orEmpty()
                 actualQrCodeConfig = null
                 activeQrCodeJson = null
 
@@ -170,7 +171,8 @@ class LocalServer(
                         accessToken = access,
                         refreshToken = refresh,
                         serverName = resolveServerName(),
-                        serverIp = pairedServerIp
+                        serverIp = pairedServerIp,
+                        serverIps = pairedServerIps
                     )
                 )
             } else {
@@ -397,14 +399,15 @@ class LocalServer(
 
 
     fun generateQqCode(): QrConnectionConfig {
-        val ipv6List = NetworkUtils.getLinkLocalIPv6Addresses()
-        val myIp = ipv6List.firstOrNull { it.contains("en0") } ?: ipv6List.firstOrNull()
-        val cleanIp = myIp?.substringBefore("%")
+        val lanAddresses = NetworkUtils.getLanIpAddresses()
+        val primaryIp = lanAddresses.firstOrNull() ?: getIpAddress()
+
         return QrConnectionConfig(
-            ip = cleanIp ?: getIpAddress(),
+            ip = primaryIp,
             port = 33333,
             secretKey = cryptoEngine.generateKey(),
-            pairingKey = (10000..99999).random().toString()
+            pairingKey = (10000..99999).random().toString(),
+            ipAddresses = lanAddresses
         )
     }
 
@@ -463,16 +466,26 @@ private fun Application.converterInit() {
 
 object NetworkUtils {
     fun getIpAddress(): String {
-        val interfaces = NetworkInterface.getNetworkInterfaces()
-        for (iface in interfaces) {
-            val addrs = iface.inetAddresses
-            for (addr in addrs) {
-                if (!addr.isLoopbackAddress && addr is Inet4Address) {
-                    return addr.hostAddress
+        return getLanIpAddresses().firstOrNull() ?: "127.0.0.1"
+    }
+
+    fun getLanIpAddresses(): List<String> {
+        return runCatching {
+            NetworkInterface.getNetworkInterfaces()
+                .toList()
+                .asSequence()
+                .filter { it.isUsableLanInterface() }
+                .sortedWith(compareByDescending<NetworkInterface> { it.isPreferredLanInterface() }
+                    .thenBy { it.index })
+                .flatMap { iface ->
+                    iface.inetAddresses.toList().asSequence()
+                        .filterIsInstance<Inet4Address>()
+                        .filter { it.isUsableLanAddress() }
+                        .map { it.hostAddress }
                 }
-            }
-        }
-        return "127.0.0.1"
+                .distinct()
+                .toList()
+        }.getOrDefault(emptyList())
     }
 
     fun getLinkLocalIPv6Addresses(): List<String> {
@@ -512,5 +525,56 @@ object NetworkUtils {
             e.printStackTrace()
         }
         return addresses
+    }
+
+    private fun NetworkInterface.isUsableLanInterface(): Boolean {
+        if (!isUp || isLoopback || isPointToPoint || isVirtual) return false
+
+        val id = listOf(name, displayName)
+            .joinToString(" ")
+            .lowercase()
+
+        val blockedNames = listOf(
+            "utun",
+            "tun",
+            "tap",
+            "ppp",
+            "ipsec",
+            "wg",
+            "wireguard",
+            "tailscale",
+            "zerotier",
+            "zt",
+            "docker",
+            "bridge",
+            "vbox",
+            "vmnet",
+            "awdl",
+            "llw"
+        )
+
+        return blockedNames.none { it in id }
+    }
+
+    private fun NetworkInterface.isPreferredLanInterface(): Boolean {
+        val id = listOf(name, displayName)
+            .joinToString(" ")
+            .lowercase()
+
+        return listOf("en0", "en1", "wi-fi", "wifi", "wlan", "ethernet", "eth").any { it in id }
+    }
+
+    private fun Inet4Address.isUsableLanAddress(): Boolean {
+        if (isAnyLocalAddress || isLoopbackAddress || isLinkLocalAddress || isMulticastAddress) {
+            return false
+        }
+
+        val bytes = address.map { it.toInt() and 0xff }
+        val first = bytes[0]
+        val second = bytes[1]
+
+        return first == 10 ||
+            first == 192 && second == 168 ||
+            first == 172 && second in 16..31
     }
 }
