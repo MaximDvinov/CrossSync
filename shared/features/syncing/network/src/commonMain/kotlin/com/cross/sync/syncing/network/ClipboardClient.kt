@@ -22,6 +22,7 @@ import com.russhwolf.settings.set
 import io.github.aakira.napier.Napier
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
@@ -69,33 +70,60 @@ class ClipboardClient(
     ): Result<Unit> = runCatchingForApi {
         config = json.decodeFromString<QrConnectionConfig>(qrConnectionConfig)
 
-        setting[SyncSettingsKeys.HOST] = config!!.ip
         setting[SyncSettingsKeys.PORT] = config!!.port
 
-        client = createHttpClient(json, deviceRepository, setting)
+        var lastError: Throwable? = null
+        val candidates = config!!.candidateHosts()
 
-        val tokens = client!!.post(PAIR_ROUTE) {
-            setBody(
-                DeviceDataDto(
+        for (host in candidates) {
+            setting[SyncSettingsKeys.HOST] = host
+            client?.close()
+
+            val httpClient = createHttpClient(json, deviceRepository, setting, host).also {
+                client = it
+            }
+
+            val tokens = runCatching {
+                httpClient.post(PAIR_ROUTE) {
+                    setBody(
+                        DeviceDataDto(
+                            id = deviceId,
+                            name = deviceName,
+                            pairingKey = config!!.pairingKey
+                        )
+                    )
+                }.body<TokenResponse>()
+            }.onFailure {
+                lastError = it
+                httpClient.close()
+                if (client === httpClient) client = null
+            }.getOrNull() ?: continue
+
+            val knownHosts = listOf(tokens.serverIp, config!!.ip)
+                .filterNotNull()
+                .plus(tokens.serverIps)
+                .plus(config!!.ipAddresses)
+                .normalizedHosts()
+
+            setting[SyncSettingsKeys.HOST] = host
+            setting[SyncSettingsKeys.HOSTS] = knownHosts.joinToString(",")
+            setting[SyncSettingsKeys.CONNECTED_DESKTOP_NAME] = tokens.serverName ?: "Mac"
+            setting[SyncSettingsKeys.CONNECTED_DESKTOP_IP] = host
+
+            deviceRepository.saveDevice(
+                DeviceData(
                     id = deviceId,
                     name = deviceName,
-                    pairingKey = config!!.pairingKey
+                    accessToken = tokens.accessToken,
+                    refreshToken = tokens.refreshToken,
+                    secretKey = config!!.secretKey
                 )
             )
-        }.body<TokenResponse>()
 
-        setting[SyncSettingsKeys.CONNECTED_DESKTOP_NAME] = tokens.serverName ?: "Mac"
-        setting[SyncSettingsKeys.CONNECTED_DESKTOP_IP] = tokens.serverIp ?: config!!.ip
+            return@runCatchingForApi
+        }
 
-        deviceRepository.saveDevice(
-            DeviceData(
-                id = deviceId,
-                name = deviceName,
-                accessToken = tokens.accessToken,
-                refreshToken = tokens.refreshToken,
-                secretKey = config!!.secretKey
-            )
-        )
+        throw lastError ?: ClientException()
     }
 
     fun disconnect() {
@@ -112,92 +140,110 @@ class ClipboardClient(
             "Websocket",
             message = "start connect"
         )
-        val httpClient = client ?: createHttpClient(json, deviceRepository, setting).apply {
-            client = this
-        }
-
         connectedState.emit(ClientConnectState.Connecting)
 
-        try {
-            httpClient.webSocket(
-                method = HttpMethod.Get,
-                path = SYNC_ROUTE
-            ) {
-                val device = deviceRepository.getDeviceById(null)
-                    ?: error("Device not found")
+        val candidates = savedHosts()
+        var lastError: Throwable? = null
 
-                connectedState.emit(ClientConnectState.Connected)
+        for (host in candidates) {
+            try {
+                client?.close()
+                val httpClient = createHttpClient(json, deviceRepository, setting, host).apply {
+                    client = this
+                }
 
-                Napier.log(
-                    io.github.aakira.napier.LogLevel.INFO,
-                    "Websocket",
-                    message = "connected"
-                )
+                httpClient.webSocket(
+                    method = HttpMethod.Get,
+                    path = SYNC_ROUTE
+                ) {
+                    setting[SyncSettingsKeys.HOST] = host
+                    setting[SyncSettingsKeys.CONNECTED_DESKTOP_IP] = host
 
-                try {
-                    while (true) {
-                        val data = receiveDeserialized<DataPackage>()
+                    val device = deviceRepository.getDeviceById(null)
+                        ?: error("Device not found")
 
-                        cryptoEngine.decrypt(
-                            data.encryptedContent,
-                            secretKey = device.secretKey
-                        ).onSuccess {
-                            val payload = runCatching {
-                                json.decodeFromString<SyncPayloadDto>(it)
-                            }.getOrNull()
+                    connectedState.emit(ClientConnectState.Connected)
 
-                            when (payload) {
-                                is SyncPayloadDto.CopiedDataPayload -> {
-                                    messagesFlow.emit(payload.data.toDomain())
-                                }
+                    Napier.log(
+                        io.github.aakira.napier.LogLevel.INFO,
+                        "Websocket",
+                        message = "connected"
+                    )
 
-                                is SyncPayloadDto.CategoryPayload -> {
-                                    categoryFlow.emit(
-                                        Category(
-                                            id = payload.categoryId,
-                                            name = payload.name
+                    try {
+                        while (true) {
+                            val data = receiveDeserialized<DataPackage>()
+
+                            cryptoEngine.decrypt(
+                                data.encryptedContent,
+                                secretKey = device.secretKey
+                            ).onSuccess {
+                                val payload = runCatching {
+                                    json.decodeFromString<SyncPayloadDto>(it)
+                                }.getOrNull()
+
+                                when (payload) {
+                                    is SyncPayloadDto.CopiedDataPayload -> {
+                                        messagesFlow.emit(payload.data.toDomain())
+                                    }
+
+                                    is SyncPayloadDto.CategoryPayload -> {
+                                        categoryFlow.emit(
+                                            Category(
+                                                id = payload.categoryId,
+                                                name = payload.name
+                                            )
                                         )
-                                    )
-                                }
+                                    }
 
-                                is SyncPayloadDto.CategoryBindingPayload -> {
-                                    categoryBindingFlow.emit(
-                                        CategoryBinding(
-                                            categoryId = payload.categoryId,
-                                            copiedDataId = payload.copiedDataId
+                                    is SyncPayloadDto.CategoryBindingPayload -> {
+                                        categoryBindingFlow.emit(
+                                            CategoryBinding(
+                                                categoryId = payload.categoryId,
+                                                copiedDataId = payload.copiedDataId
+                                            )
                                         )
-                                    )
-                                }
+                                    }
 
-                                null -> {
-                                    // Backward compatibility: previously only CopiedDataDto was sent.
-                                    val message = json.decodeFromString<CopiedDataDto>(it)
-                                    messagesFlow.emit(message.toDomain())
+                                    null -> {
+                                        // Backward compatibility: previously only CopiedDataDto was sent.
+                                        val message = json.decodeFromString<CopiedDataDto>(it)
+                                        messagesFlow.emit(message.toDomain())
+                                    }
                                 }
                             }
-                        }.onFailure {
-
                         }
+                    } catch (e: CancellationException) {
+                        e.printStackTrace()
+                        connectedState.emit(
+                            ClientConnectState.Disconnected(e)
+                        )
+                        throw e
+                    } catch (e: Throwable) {
+                        e.printStackTrace()
+                        connectedState.emit(
+                            ClientConnectState.Disconnected(e)
+                        )
                     }
-                } catch (e: CancellationException) {
-                    e.printStackTrace()
-                    connectedState.emit(
-                        ClientConnectState.Disconnected(e)
-                    )
-                    throw e
-                } catch (e: Throwable) {
-                    e.printStackTrace()
-                    connectedState.emit(
-                        ClientConnectState.Disconnected(e)
-                    )
                 }
+
+                httpClient.close()
+                if (client === httpClient) client = null
+                return connectedState
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                lastError = e
+                client?.close()
+                client = null
             }
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            connectedState.emit(
-                ClientConnectState.Disconnected(e)
-            )
         }
+
+        val error = lastError ?: ClientException()
+        error.printStackTrace()
+        connectedState.emit(
+            ClientConnectState.Disconnected(error)
+        )
 
         return connectedState
     }
@@ -231,6 +277,12 @@ class ClipboardClient(
         return connectedState
     }
 
+    private fun savedHosts(): List<String> {
+        return listOf(setting[SyncSettingsKeys.HOST, ""])
+            .plus(setting[SyncSettingsKeys.HOSTS, ""].split(','))
+            .normalizedHosts()
+    }
+
     companion object {}
 }
 
@@ -243,9 +295,15 @@ private fun createHttpClient(
     json: Json,
     deviceRepository: DeviceRepository,
     setting: Settings,
+    host: String = setting[SyncSettingsKeys.HOST, ""],
 ): HttpClient {
     return HttpClient {
         expectSuccess = true
+        install(HttpTimeout) {
+            requestTimeoutMillis = 5_000
+            connectTimeoutMillis = 3_000
+            socketTimeoutMillis = 5_000
+        }
         install(WebSockets) {
             contentConverter = KotlinxWebsocketSerializationConverter(Json {
                 ignoreUnknownKeys = true
@@ -297,10 +355,22 @@ private fun createHttpClient(
         defaultRequest {
             url {
                 protocol = URLProtocol.HTTP
-                this.host = setting[SyncSettingsKeys.HOST, ""]
+                this.host = host
                 this.port = setting[SyncSettingsKeys.PORT, 0]
             }
             headers.appendIfNameAbsent(HttpHeaders.ContentType, "application/json")
         }
     }
+}
+
+private fun QrConnectionConfig.candidateHosts(): List<String> {
+    return listOf(ip)
+        .plus(ipAddresses)
+        .normalizedHosts()
+}
+
+private fun Iterable<String>.normalizedHosts(): List<String> {
+    return map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
 }

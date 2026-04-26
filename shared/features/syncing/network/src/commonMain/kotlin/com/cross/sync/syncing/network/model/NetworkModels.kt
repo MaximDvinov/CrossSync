@@ -7,7 +7,8 @@ data class QrConnectionConfig(
     val ip: String,
     val port: Int,
     val secretKey: String,
-    val pairingKey: String
+    val pairingKey: String,
+    val ipAddresses: List<String> = emptyList()
 )
 
 @Serializable
@@ -33,7 +34,8 @@ data class TokenResponse(
     val accessToken: String,
     val refreshToken: String,
     val serverName: String? = null,
-    val serverIp: String? = null
+    val serverIp: String? = null,
+    val serverIps: List<String> = emptyList()
 )
 
 @Serializable
