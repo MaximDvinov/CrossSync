@@ -8,6 +8,7 @@ import com.varabyte.kobweb.compose.ui.Modifier
 import com.varabyte.kobweb.compose.ui.attrsModifier
 import com.varabyte.kobweb.compose.ui.toAttrs
 import com.varabyte.kobweb.core.Page
+import com.varabyte.kobweb.navigation.BasePath
 import kotlinx.browser.document
 import org.jetbrains.compose.web.attributes.ATarget
 import org.jetbrains.compose.web.attributes.alt
@@ -58,9 +59,9 @@ data class LandingCopy(
 val EnglishCopy = LandingCopy(
     lang = "en",
     otherLangLabel = "RU",
-    otherLangUrl = "ru/",
+    otherLangUrl = "/ru/",
     otherLangCode = "ru",
-    logoUrl = "assets/logo.svg",
+    logoUrl = "/assets/logo.svg",
     title = "CrossSync",
     description = "Local clipboard synchronization between Android and Desktop without cloud services.",
     eyebrow = "Kotlin Multiplatform clipboard sync",
@@ -90,9 +91,9 @@ val EnglishCopy = LandingCopy(
 val RussianCopy = LandingCopy(
     lang = "ru",
     otherLangLabel = "EN",
-    otherLangUrl = "../",
+    otherLangUrl = "/",
     otherLangCode = "en",
-    logoUrl = "../assets/logo.svg",
+    logoUrl = "/assets/logo.svg",
     title = "CrossSync",
     description = "Локальная синхронизация буфера обмена между Android и Desktop без облачных сервисов.",
     eyebrow = "Kotlin Multiplatform синхронизация буфера",
@@ -354,7 +355,7 @@ private fun InfoBlock(title: String, text: String) {
 
 @Composable
 private fun Logo(size: Int, url: String) {
-    Img(src = url, attrs = {
+    Img(src = BasePath.prependTo(url), attrs = {
         alt("CrossSync logo")
         attr("width", size.toString())
         attr("height", size.toString())
@@ -396,7 +397,7 @@ private fun ButtonLink(label: String, url: String, filled: Boolean) {
 @Composable
 private fun NavLink(label: String, url: String, lang: String) {
     A(attrs = {
-        href(url)
+        href(BasePath.prependTo(url))
         attr("hreflang", lang)
         attr("aria-label", if (lang == "ru") "Русская версия" else "English version")
         attr("style", "display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;border-radius:12px;background:#FEFFFF;color:#02609B;text-decoration:none;font-weight:800;border:1px solid rgba(95,146,221,.20);")
