@@ -35,7 +35,8 @@ private data object ConnectionRoute : NavKey
 fun MainScreen(
     modifier: Modifier = Modifier,
     isClient: Boolean,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    onPairRequested: ((() -> Unit), () -> Unit) -> Unit = { onGranted, _ -> onGranted() }
 ) {
     val connectDeviceViewModel: ConnectDeviceViewModel = koinInject()
     val settingViewModel: SettingViewModel = koinInject()
@@ -92,6 +93,7 @@ fun MainScreen(
                     modifier = Modifier,
                     connectDeviceViewModel = connectDeviceViewModel,
                     contentPadding = contentPadding,
+                    onPairRequested = onPairRequested,
                     onBack = { backStack.removeLastOrNull() }
                 )
             }

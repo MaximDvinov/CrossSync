@@ -8,12 +8,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 interface ClipboardServer {
-    fun start(): Pair<StateFlow<ServerState>, SharedFlow<ServerEvent?>>
+    fun start(): Pair<StateFlow<ServerState>, SharedFlow<ServerEvent>>
     fun stop()
 
     fun startPairing(): StateFlow<PairingState>
     suspend fun sendCopiedDataWebSocket(message: CopiedData): Result<Unit>
     fun observeServerState(): StateFlow<ServerState>
-    fun observeServerEvent(): SharedFlow<ServerEvent?>
+    fun observeServerEvent(): SharedFlow<ServerEvent>
     fun observePairingState(): StateFlow<PairingState?>
 }

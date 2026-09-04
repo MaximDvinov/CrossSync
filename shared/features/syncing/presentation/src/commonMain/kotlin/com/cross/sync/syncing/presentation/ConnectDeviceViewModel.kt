@@ -141,6 +141,14 @@ class ConnectDeviceViewModel(
         }
     }
 
+    fun onLocalNetworkPermissionDenied() {
+        updateConnectionState(
+            ClientConnectState.Error(
+                "Для синхронизации с Mac нужен доступ к локальной сети"
+            )
+        )
+    }
+
     private fun updateConnectionState(connectState: ClientConnectState) {
         val errorMessage = when (connectState) {
             is ClientConnectState.Disconnected -> {

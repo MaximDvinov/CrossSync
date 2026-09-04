@@ -36,10 +36,11 @@ import kotlinx.coroutines.launch
 import tryRegisterGlobalHotkey
 import unregisterGlobalHotkeyIfRegistered
 import utils.bringAppToFront
-import utils.calculateWindowPositionUnderMouse
+import utils.calculateWindowLocationUnderMouse
 import utils.getFrontmostAppBundleId
 import utils.pasteClipboardMac
 import java.awt.Dimension
+import java.awt.Window as AwtWindow
 import org.koin.compose.koinInject
 
 @Composable
@@ -57,6 +58,7 @@ fun ApplicationScope.QuickClipboardWindow(
     var isTopBar by remember { mutableStateOf(false) }
     val windowState = rememberWindowState(width = windowWidthDp, height = windowHeightDp)
     var showWindow by remember { mutableStateOf(false) }
+    var awtWindow by remember { mutableStateOf<AwtWindow?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -128,16 +130,22 @@ fun ApplicationScope.QuickClipboardWindow(
         if (showWindow) {
             quickAccessHistorySize =
                 settingPreferencesStore.getGeneralSettings().quickAccessHistorySize
-            windowState.position =
-                calculateWindowPositionUnderMouse(
-                    windowWidthDp,
-                    windowHeightDp,
-                    density,
-                    isTopBar
-                )
+            val location = calculateWindowLocationUnderMouse(
+                windowWidthDp,
+                windowHeightDp,
+                density,
+                isTopBar
+            )
+
+            // On macOS a hidden native window keeps the display it was last shown on.
+            // Move the native window before it becomes visible, then repeat after showing it.
+            awtWindow?.location = location
+            isWindowShowed = true
+            delay(10)
+            awtWindow?.location = location
+        } else {
+            isWindowShowed = false
         }
-        delay(10)
-        isWindowShowed = showWindow
     }
 
     Window(
@@ -149,8 +157,16 @@ fun ApplicationScope.QuickClipboardWindow(
             showWindow = false
         },
         undecorated = true,
-        transparent = true,
+    transparent = true,
     ) {
+        val nativeWindow = this.window
+        DisposableEffect(nativeWindow) {
+            awtWindow = nativeWindow
+            onDispose {
+                if (awtWindow === nativeWindow) awtWindow = null
+            }
+        }
+
         this.window.minimumSize =
             Dimension(windowWidthDp.value.toInt(), windowHeightDp.value.toInt())
 

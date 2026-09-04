@@ -1,16 +1,15 @@
 plugins {
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.android.application)
 }
 
 android {
     namespace = "com.cross.sync"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
 
         applicationId = "com.cross.sync.androidApp"
         versionCode = 1

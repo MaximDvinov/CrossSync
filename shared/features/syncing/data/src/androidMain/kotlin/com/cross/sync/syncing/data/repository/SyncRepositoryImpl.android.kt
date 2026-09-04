@@ -15,6 +15,9 @@ class AndroidSyncRepositoryImpl(
 ) : SyncRepositoryImpl(client) {
     override suspend fun connect(): Result<Flow<ClientConnectState>> {
         Log.i("AndroidSyncRepositoryImpl", " start connect")
+        if (!context.hasLocalNetworkAccess()) {
+            return Result.failure(LocalNetworkPermissionRequiredException())
+        }
         val result = startServiceIfNeeded()
         return result.map { client.observeConnectedState() }
     }

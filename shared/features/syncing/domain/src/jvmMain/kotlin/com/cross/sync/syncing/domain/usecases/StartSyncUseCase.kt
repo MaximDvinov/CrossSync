@@ -9,7 +9,6 @@ import com.cross.sync.syncing.domain.repository.ClipboardServer
 import com.cross.sync.syncing.domain.repository.DeviceRepository
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 class StartSyncUseCase(
@@ -56,7 +55,7 @@ class StartSyncUseCase(
 
 
         launch {
-            eventFlow.filterNotNull().collect { event ->
+            eventFlow.collect { event ->
                 when (event) {
                     is ServerEvent.AddedDevice -> {
                         deviceRepository.saveDevice(event.deviceData)

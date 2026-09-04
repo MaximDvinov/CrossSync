@@ -41,6 +41,7 @@ fun ConnectionScreen(
     modifier: Modifier = Modifier,
     connectDeviceViewModel: ConnectDeviceViewModel = koinInject(),
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    onPairRequested: ((() -> Unit), () -> Unit) -> Unit = { onGranted, _ -> onGranted() },
     onBack: () -> Unit
 ) {
     val state by connectDeviceViewModel.state.collectAsState()
@@ -55,10 +56,16 @@ fun ConnectionScreen(
     ) {
         ScannerWithPermissions(
             onScanned = {
-                connectDeviceViewModel.pair(
-                    deviceId = "android-client",
-                    deviceName = "Android",
-                    qrCode = it
+                val qrCode = it
+                onPairRequested(
+                    {
+                        connectDeviceViewModel.pair(
+                            deviceId = "android-client",
+                            deviceName = "Android",
+                            qrCode = qrCode
+                        )
+                    },
+                    connectDeviceViewModel::onLocalNetworkPermissionDenied
                 )
                 false
             },

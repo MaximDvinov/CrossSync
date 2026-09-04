@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.pm.ServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -16,11 +17,13 @@ import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.repository.DeviceRepository
 import com.cross.sync.syncing.network.ClipboardClient
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
@@ -61,10 +64,7 @@ class SyncForegroundService : LifecycleService() {
         val notificationManager = SyncNotificationManager(this)
         notificationManager.createChannel()
 
-        startForeground(
-            SyncNotificationManager.NOTIFICATION_ID,
-            notificationManager.buildNotification()
-        )
+        startAsConnectedDeviceForeground(notificationManager.buildNotification())
 
         Log.i("SyncService", "onStartCommand: websocket start")
         if (!isStarted) {
@@ -82,58 +82,84 @@ class SyncForegroundService : LifecycleService() {
 
     private fun startSyncJobs() {
         serviceScope.launch {
-            // Keep websocket alive and reconnect automatically on any disconnection.
-            launch { reconnectLoop() }
+            val copiedDataCollectorReady = CompletableDeferred<Unit>()
+            val categoryCollectorReady = CompletableDeferred<Unit>()
+            val categoryBindingCollectorReady = CompletableDeferred<Unit>()
 
-            // Receive updates from Mac and apply on Android.
+            // Persist history from Mac, but only apply the current/live value to Android's clipboard.
             launch {
-                client.observeCopiedData().collect { copiedData ->
-                    if (!copiedData.isSyncableText()) return@collect
-                    if (copiedData.id == lastIncomingClipboardId) {
-                        return@collect
-                    }
-                    if (shouldSkipIncomingDuplicate(copiedData)) {
-                        return@collect
-                    }
-                    lastIncomingClipboardId = copiedData.id
-                    rememberIncoming(copiedData)
+                client.observeCopiedData()
+                    .onStart { copiedDataCollectorReady.complete(Unit) }
+                    .collect { incomingData ->
+                        val copiedData = incomingData.data
+                        if (!copiedData.isSyncableText()) return@collect
+                        if (!incomingData.updateSystemClipboard) {
+                            persistIfMissing(copiedData)
+                            return@collect
+                        }
+                        if (copiedData.id == lastIncomingClipboardId) {
+                            return@collect
+                        }
+                        if (shouldSkipIncomingDuplicate(copiedData)) {
+                            return@collect
+                        }
+                        lastIncomingClipboardId = copiedData.id
+                        rememberIncoming(copiedData)
 
-                    Log.i("SyncService", "incoming: $copiedData")
+                        Log.i("SyncService", "incoming: $copiedData")
 
-                    systemClipboardRepository.setData(copiedData)
-                    persistIfMissing(copiedData)
-                }
+                        systemClipboardRepository.setData(copiedData)
+                        persistIfMissing(copiedData)
+                    }
             }
 
             // Receive categories from Mac and mirror them on Android.
             launch {
-                client.observeCategories().collect { category ->
-                    clipboardRepository.addCategory(category)
-                }
+                client.observeCategories()
+                    .onStart { categoryCollectorReady.complete(Unit) }
+                    .collect { category ->
+                        clipboardRepository.addCategory(category)
+                    }
             }
 
             // Receive category bindings from Mac and mirror relations.
             launch {
-                client.observeCategoryBindings().collect { binding ->
-                    runCatching {
-                        clipboardRepository.addCopiedDataToCategory(
-                            copiedDataId = binding.copiedDataId,
-                            categoryId = binding.categoryId
-                        )
-                    }.onFailure {
-                        Log.w(
-                            "SyncService",
-                            "failed to apply category binding ${binding.categoryId} -> ${binding.copiedDataId}: ${it.message}"
-                        )
+                client.observeCategoryBindings()
+                    .onStart { categoryBindingCollectorReady.complete(Unit) }
+                    .collect { binding ->
+                        runCatching {
+                            clipboardRepository.addCopiedDataToCategory(
+                                copiedDataId = binding.copiedDataId,
+                                categoryId = binding.categoryId
+                            )
+                        }.onFailure {
+                            Log.w(
+                                "SyncService",
+                                "failed to apply category binding ${binding.categoryId} -> ${binding.copiedDataId}: ${it.message}"
+                            )
+                        }
                     }
-                }
             }
+
+            copiedDataCollectorReady.await()
+            categoryCollectorReady.await()
+            categoryBindingCollectorReady.await()
+
+            // Start networking only after every snapshot consumer is ready.
+            reconnectLoop()
         }
     }
 
     private suspend fun reconnectLoop() {
+        var reconnectAttempt = 0
         while (serviceScope.isActive) {
             if (deviceRepository.getDeviceById(null) == null) {
+                stopServiceNow()
+                break
+            }
+
+            if (!hasLocalNetworkAccess()) {
+                Log.i("SyncService", "local network permission is unavailable; stopping sync")
                 stopServiceNow()
                 break
             }
@@ -141,18 +167,22 @@ class SyncForegroundService : LifecycleService() {
             when (client.observeConnectedState().value) {
                 is ClientConnectState.Connected,
                 is ClientConnectState.Connecting -> {
-                    delay(RECONNECT_DELAY_MS)
+                    reconnectAttempt = 0
+                    delay(CONNECTION_STATE_CHECK_DELAY_MS)
                 }
 
                 is ClientConnectState.Idle,
                 is ClientConnectState.Disconnected,
                 is ClientConnectState.Error -> {
+                    if (reconnectAttempt > 0) {
+                        delay(reconnectDelayMillis(reconnectAttempt))
+                    }
                     runCatching {
                         client.connect()
                     }.onFailure {
                         Log.e("SyncService", "connect failed: ${it.message}", it)
                     }
-                    delay(RECONNECT_DELAY_MS)
+                    reconnectAttempt = (reconnectAttempt + 1).coerceAtMost(MAX_RECONNECT_ATTEMPTS)
                 }
             }
         }
@@ -190,10 +220,30 @@ class SyncForegroundService : LifecycleService() {
         stopSelf()
     }
 
+    private fun startAsConnectedDeviceForeground(notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                SyncNotificationManager.NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            )
+        } else {
+            startForeground(SyncNotificationManager.NOTIFICATION_ID, notification)
+        }
+    }
+
     companion object {
         const val ACTION_STOP_SYNC = "com.cross.sync.ACTION_STOP_SYNC"
-        private const val RECONNECT_DELAY_MS = 1_500L
+        private const val CONNECTION_STATE_CHECK_DELAY_MS = 30_000L
+        private const val INITIAL_RECONNECT_DELAY_MS = 5_000L
+        private const val MAX_RECONNECT_DELAY_MS = 5 * 60_000L
+        private const val MAX_RECONNECT_ATTEMPTS = 6
         private const val INCOMING_DEDUP_WINDOW_MS = 2_500L
+
+        private fun reconnectDelayMillis(attempt: Int): Long {
+            return (INITIAL_RECONNECT_DELAY_MS * (1L shl (attempt - 1)))
+                .coerceAtMost(MAX_RECONNECT_DELAY_MS)
+        }
     }
 }
 
@@ -234,6 +284,8 @@ class SyncNotificationManager(
             ).apply {
                 description = "Clipboard synchronization service"
                 setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
             }
 
             context
@@ -258,7 +310,11 @@ class SyncNotificationManager(
             .setContentText("Clipboard synchronization is active")
             .setSmallIcon(android.R.drawable.ic_popup_sync)
             .setOngoing(true)
+            .setSilent(true)
             .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
                 "Stop",
