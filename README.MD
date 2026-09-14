@@ -14,7 +14,11 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
 - Local clipboard history with categories.
 - Support for text, formatted text (HTML/RTF), images, and files in local clipboard history.
 - LAN synchronization with encryption (text and formatted text).
+- Android notification synchronization to macOS over the local network.
+- macOS notification popup with notification text, app metadata, icons, images, avatars, grouping, and notification state.
+- Interactive notification actions, dismissal, and inline replies from macOS.
 - Settings: desktop auto-start, history auto-cleanup, quick history size, excluded applications.
+- Settings for notification synchronization and notification content visibility.
 
 ## Tech Stack
 - Kotlin Multiplatform, Compose Multiplatform
@@ -38,6 +42,9 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
 - [x] Text/formatted-text synchronization over LAN
 - [x] macOS quick-access window hotkey (`Meta + Shift + V`)
 - [x] Basic sync and history cleanup settings
+- [x] Android notification synchronization to macOS
+- [x] Interactive notification actions and inline replies
+- [x] Notification sync and content visibility settings
 - [ ] Image and file synchronization across devices
 - [ ] Windows/Linux desktop support
 - [ ] Public release artifacts (.dmg/.apk) and release docs
