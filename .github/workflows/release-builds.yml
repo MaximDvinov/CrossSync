@@ -13,8 +13,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: "release-${{ github.ref }}"
@@ -125,53 +123,12 @@ jobs:
           path: androidApp/build/outputs/apk/release/CrossSync-Android-${{ needs.prepare.outputs.version }}.apk
           if-no-files-found: error
 
-  build-pages:
-    runs-on: ubuntu-latest
-    needs: prepare
-    env:
-      APP_VERSION: ${{ needs.prepare.outputs.version }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Export Kobweb landing as static site
-        run: ./scripts/landing-pages.sh build
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: landing/.kobweb/site
-
-  deploy-pages:
-    runs-on: ubuntu-latest
-    needs: build-pages
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
   publish-release:
     runs-on: ubuntu-latest
     needs:
       - prepare
       - build-macos
       - build-android-apk
-      - deploy-pages
     steps:
       - name: Download macOS package
         uses: actions/download-artifact@v4
