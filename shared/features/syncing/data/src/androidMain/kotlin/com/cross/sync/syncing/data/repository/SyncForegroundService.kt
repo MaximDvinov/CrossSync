@@ -17,6 +17,8 @@ import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.repository.DeviceRepository
 import com.cross.sync.syncing.network.ClipboardClient
+import com.cross.sync.notifications.domain.repository.NotificationActionExecutor
+import com.cross.sync.notifications.domain.repository.NotificationSnapshotPublisher
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +35,8 @@ class SyncForegroundService : LifecycleService() {
     private val clipboardRepository: LocalClipboardRepository by inject()
     private val systemClipboardRepository: SystemClipboardRepository by inject()
     private val deviceRepository: DeviceRepository by inject()
+    private val notificationActionExecutor: NotificationActionExecutor by inject()
+    private val notificationSnapshotPublisher: NotificationSnapshotPublisher by inject()
 
     private val serviceScope = CoroutineScope(
         SupervisorJob() + Dispatchers.IO
@@ -85,6 +89,7 @@ class SyncForegroundService : LifecycleService() {
             val copiedDataCollectorReady = CompletableDeferred<Unit>()
             val categoryCollectorReady = CompletableDeferred<Unit>()
             val categoryBindingCollectorReady = CompletableDeferred<Unit>()
+            val notificationActionCollectorReady = CompletableDeferred<Unit>()
 
             // Persist history from Mac, but only apply the current/live value to Android's clipboard.
             launch {
@@ -141,9 +146,29 @@ class SyncForegroundService : LifecycleService() {
                     }
             }
 
+            launch {
+                client.observeNotificationActions()
+                    .onStart { notificationActionCollectorReady.complete(Unit) }
+                    .collect { request ->
+                    notificationActionExecutor.execute(request)
+                        .onFailure { error ->
+                            Log.w("SyncService", "notification action failed: ${error.message}", error)
+                        }
+                    }
+            }
+
+            launch {
+                client.observeConnectedState().collect { state ->
+                    if (state is ClientConnectState.Connected) {
+                        notificationSnapshotPublisher.publishActive()
+                    }
+                }
+            }
+
             copiedDataCollectorReady.await()
             categoryCollectorReady.await()
             categoryBindingCollectorReady.await()
+            notificationActionCollectorReady.await()
 
             // Start networking only after every snapshot consumer is ready.
             reconnectLoop()

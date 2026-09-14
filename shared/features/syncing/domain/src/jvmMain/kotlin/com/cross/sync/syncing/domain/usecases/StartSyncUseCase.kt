@@ -3,6 +3,7 @@ package com.cross.sync.syncing.domain.usecases
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.clipboard.domain.repository.SystemClipboardRepository
+import com.cross.sync.notifications.domain.repository.NotificationRepository
 import com.cross.sync.syncing.domain.entity.ServerEvent
 import com.cross.sync.syncing.domain.entity.ServerState
 import com.cross.sync.syncing.domain.repository.ClipboardServer
@@ -15,7 +16,8 @@ class StartSyncUseCase(
     private val server: ClipboardServer,
     private val systemClipboardRepository: SystemClipboardRepository,
     private val localClipboardRepository: LocalClipboardRepository,
-    private val deviceRepository: DeviceRepository
+    private val deviceRepository: DeviceRepository,
+    private val notificationRepository: NotificationRepository,
 ) {
     suspend operator fun invoke(): StateFlow<ServerState> = coroutineScope {
         val (stateFlow, eventFlow) = server.start()
@@ -65,6 +67,18 @@ class StartSyncUseCase(
                         suppressOutboundKey = event.copiedData.normalizedClipboardKey()
                         suppressOutboundUntilMs = System.currentTimeMillis() + SUPPRESS_OUTBOUND_WINDOW_MS
                         systemClipboardRepository.setData(event.copiedData)
+                    }
+
+                    is ServerEvent.ReceivedNotification -> {
+                        notificationRepository.upsert(event.notification)
+                    }
+
+                    is ServerEvent.RemovedNotification -> {
+                        notificationRepository.markRemoved(
+                            deviceId = event.deviceId,
+                            notificationKey = event.removal.notificationKey,
+                            removedAt = event.removal.removedAt,
+                        )
                     }
                 }
             }

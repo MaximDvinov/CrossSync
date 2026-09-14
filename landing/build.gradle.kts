@@ -9,12 +9,12 @@ plugins {
 }
 
 group = "com.cross.sync.landing"
-version = "1.0.0"
+version = providers.gradleProperty("appVersion").orElse("1.0.0").get()
 
 kobweb {
     app {
         index {
-            description.set("CrossSync synchronizes clipboard history between Android and Desktop over a local network without cloud services.")
+            description.set("CrossSync synchronizes clipboard history and Android notifications between Android and Desktop over a local network without cloud services.")
             faviconPath.set("/assets/logo.svg")
             head.add {
                 meta {
@@ -28,7 +28,7 @@ kobweb {
                 meta {
                     attributes["name"] = "keywords"
                     attributes["content"] =
-                        "CrossSync, clipboard sync, Android clipboard, desktop clipboard, Kotlin Multiplatform, local network sync"
+                        "CrossSync, clipboard sync, notification sync, Android notifications, desktop notifications, Kotlin Multiplatform, local network sync"
                 }
                 meta {
                     attributes["property"] = "og:type"

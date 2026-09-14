@@ -2,6 +2,7 @@ package com.cross.sync
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -30,8 +31,11 @@ import io.github.aakira.napier.DebugAntilog
 import io.github.aakira.napier.Napier
 
 class AppActivity : ComponentActivity() {
+    private var sharedText by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        sharedText = intent.getSharedText()
         enableEdgeToEdge()
 
         Napier.base(DebugAntilog())
@@ -47,12 +51,34 @@ class AppActivity : ComponentActivity() {
                             .background(AppTheme.colors.background),
                         isClient = true,
                         contentPadding = systemBarsPadding,
-                        onPairRequested = onPairRequested
+                        onPairRequested = onPairRequested,
+                        sharedText = sharedText,
+                        onSharedTextHandled = { sharedText = null }
                     )
                 }
             }
 
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        sharedText = intent.getSharedText()
+    }
+
+    private fun Intent.getSharedText(): String? {
+        if (action != Intent.ACTION_SEND) return null
+
+        return getCharSequenceExtra(Intent.EXTRA_TEXT)
+            ?.toString()
+            ?.takeIf(String::isNotBlank)
+            ?: clipData
+                ?.takeIf { it.itemCount > 0 }
+                ?.getItemAt(0)
+                ?.coerceToText(this@AppActivity)
+                ?.toString()
+                ?.takeIf(String::isNotBlank)
     }
 }
 

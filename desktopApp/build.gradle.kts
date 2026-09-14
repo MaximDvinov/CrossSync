@@ -3,12 +3,17 @@ import java.io.File
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.compose.compiler)
@@ -16,12 +21,58 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
+val appVersion = providers.gradleProperty("appVersion").orElse("1.0.0").get()
+
 val desktopMainClass = "MainKt"
 val desktopJvmArgs = listOf(
     "-Dapple.awt.UIElement=true",
     "-Dskiko.gpu.resourceCacheLimit=50",
     "-Djava.net.preferIPv4Stack=true"
 )
+
+val macNotificationBridgeSource = layout.projectDirectory.file(
+    "native/macos/CrossSyncNotificationBridge.swift",
+)
+val macNotificationBridge = layout.buildDirectory.file(
+    "generated/macos-notification-bridge/macos/libCrossSyncNotificationBridge.dylib",
+)
+
+abstract class CompileMacNotificationBridgeTask : DefaultTask() {
+    @get:InputFile
+    abstract val source: RegularFileProperty
+
+    @get:OutputFile
+    abstract val output: RegularFileProperty
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @TaskAction
+    fun compile() {
+        val outputFile = output.get().asFile
+        outputFile.parentFile.mkdirs()
+        execOperations.exec {
+            commandLine(
+                "xcrun",
+                "swiftc",
+                "-emit-library",
+                source.get().asFile.absolutePath,
+                "-framework",
+                "UserNotifications",
+                "-o",
+                outputFile.absolutePath,
+            )
+        }.assertNormalExitValue()
+    }
+}
+
+val compileMacNotificationBridge = tasks.register<CompileMacNotificationBridgeTask>(
+    "compileMacNotificationBridge",
+) {
+    source.set(macNotificationBridgeSource)
+    output.set(macNotificationBridge)
+    onlyIf { System.getProperty("os.name").contains("mac", ignoreCase = true) }
+}
 
 @DisableCachingByDefault(because = "Spawns a long-lived UI process and returns immediately.")
 abstract class RunDetachedTask : DefaultTask() {
@@ -64,6 +115,7 @@ abstract class RunDetachedTask : DefaultTask() {
 
 dependencies {
     implementation(libs.ui)
+    implementation(libs.material3)
     implementation(libs.jna)
     implementation(libs.jnativehook)
     implementation(libs.composeIcons.feather)
@@ -74,6 +126,9 @@ dependencies {
     implementation(projects.shared.features.clipboard.di)
     implementation(projects.shared.features.syncing.di)
     implementation(projects.shared.features.setting.di)
+    implementation(projects.shared.features.notifications.di)
+    implementation(projects.shared.features.notifications.domain)
+    implementation(projects.shared.features.notifications.presentation)
 
     implementation(projects.shared.core.ui)
 
@@ -93,9 +148,10 @@ compose.desktop {
         }
 
         nativeDistributions {
+            appResourcesRootDir.set(layout.buildDirectory.dir("generated/macos-notification-bridge"))
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "CrossSync"
-            packageVersion = "1.0.0"
+            packageVersion = appVersion
 
             linux {
                 iconFile.set(project.file("appIcons/LinuxIcon.png"))
@@ -109,6 +165,10 @@ compose.desktop {
             }
         }
     }
+}
+
+tasks.matching { it.name == "createDistributable" || it.name == "prepareAppResources" }.configureEach {
+    dependsOn(compileMacNotificationBridge)
 }
 
 // Gradle держит build-lock на проект пока выполняется `:desktopApp:run` (окно открыто),

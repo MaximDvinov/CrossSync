@@ -6,7 +6,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.cross.sync.core.util"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }

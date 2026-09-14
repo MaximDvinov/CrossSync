@@ -54,6 +54,7 @@ fun ClipboardScreen(
     viewModel: ClipboardViewModel = koinInject(),
     onClose: (() -> Unit)? = null,
     onOpenFullApp: (() -> Unit)? = null,
+    onOpenNotifications: (() -> Unit)? = null,
     onPaste: (() -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     isLargeControls: Boolean = true,
@@ -77,6 +78,7 @@ fun ClipboardScreen(
             TopBar(
                 onClose = onClose,
                 onOpenSettings = onOpenFullApp,
+                onOpenNotifications = onOpenNotifications,
                 actionButtonSize = if (isLargeControls) 40.dp else 28.dp,
                 logoSize = if (isLargeControls) 40.dp else 28.dp,
                 contentPadding = contentHorizontalPadding,

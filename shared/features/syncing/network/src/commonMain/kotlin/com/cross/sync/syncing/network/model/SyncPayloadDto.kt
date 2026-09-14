@@ -1,5 +1,8 @@
 package com.cross.sync.syncing.network.model
 
+import com.cross.sync.notifications.domain.entity.NotificationActionRequest
+import com.cross.sync.notifications.domain.entity.NotificationRemoval
+import com.cross.sync.notifications.domain.entity.SyncedNotification
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -44,5 +47,23 @@ sealed class SyncPayloadDto {
     data class CategoryBindingPayload(
         val categoryId: Long,
         val copiedDataId: Long
+    ) : SyncPayloadDto()
+
+    @Serializable
+    @SerialName("Notification")
+    data class NotificationPayload(
+        val notification: SyncedNotification,
+    ) : SyncPayloadDto()
+
+    @Serializable
+    @SerialName("NotificationRemoved")
+    data class NotificationRemovedPayload(
+        val removal: NotificationRemoval,
+    ) : SyncPayloadDto()
+
+    @Serializable
+    @SerialName("NotificationAction")
+    data class NotificationActionPayload(
+        val request: NotificationActionRequest,
     ) : SyncPayloadDto()
 }

@@ -3,13 +3,12 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.android.kmp.library)
-    alias(libs.plugins.compose.hot.reload)
 }
 
 kotlin {
     android {
         namespace = "com.cross.sync.clipboard.presentation"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }
@@ -22,6 +21,7 @@ kotlin {
             implementation(libs.ui)
             implementation(libs.foundation)
             implementation(libs.material3)
+            implementation(libs.composeIcons.feather)
             implementation(libs.components.resources)
             implementation(libs.ui.tooling)
 

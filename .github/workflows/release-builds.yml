@@ -1,17 +1,62 @@
-name: Release Builds
+name: Release
 
 on:
   push:
-    branches: [ "releases" ]
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (for example 1.2.3)"
+        required: true
+        default: "1.0.0"
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "release-${{ github.ref }}"
+  cancel-in-progress: false
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Resolve release version
+        id: version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${TAG_NAME#v}"
+            tag="$TAG_NAME"
+          else
+            version="${INPUT_VERSION#v}"
+            tag="v$version"
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Version must be SemVer, got: $version" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version_code=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
   build-macos:
     runs-on: macos-latest
-
+    needs: prepare
+    env:
+      APP_VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,18 +71,29 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build macOS release package
-        run: ./gradlew :desktopApp:packageReleaseDistributionForCurrentOS
+        run: ./gradlew :desktopApp:packageReleaseDistributionForCurrentOS -PappVersion="$APP_VERSION"
 
-      - name: Upload DMG artifact
+      - name: Name macOS package with version
+        shell: bash
+        run: |
+          dmg_dir="desktopApp/build/compose/binaries/main-release/dmg"
+          dmg_file="$(find "$dmg_dir" -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          test -n "$dmg_file"
+          mv "$dmg_file" "$dmg_dir/CrossSync-macOS-$APP_VERSION.dmg"
+
+      - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
-          name: CrossSync-macOS-dmg
-          path: desktopApp/build/compose/binaries/main-release/dmg/*.dmg
+          name: CrossSync-macOS-${{ needs.prepare.outputs.version }}
+          path: desktopApp/build/compose/binaries/main-release/dmg/CrossSync-macOS-${{ needs.prepare.outputs.version }}.dmg
           if-no-files-found: error
 
   build-android-apk:
     runs-on: ubuntu-latest
-
+    needs: prepare
+    env:
+      APP_VERSION: ${{ needs.prepare.outputs.version }}
+      APP_VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,47 +108,99 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android release APK
-        run: ./gradlew :androidApp:assembleRelease
+        run: ./gradlew :androidApp:assembleRelease -PappVersion="$APP_VERSION" -PappVersionCode="$APP_VERSION_CODE"
 
-      - name: Upload APK artifact
+      - name: Name Android package with version
+        shell: bash
+        run: |
+          apk_dir="androidApp/build/outputs/apk/release"
+          apk_file="$(find "$apk_dir" -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          test -n "$apk_file"
+          mv "$apk_file" "$apk_dir/CrossSync-Android-$APP_VERSION.apk"
+
+      - name: Upload Android package
         uses: actions/upload-artifact@v4
         with:
-          name: CrossSync-android-apk
-          path: androidApp/build/outputs/apk/release/*.apk
+          name: CrossSync-Android-${{ needs.prepare.outputs.version }}
+          path: androidApp/build/outputs/apk/release/CrossSync-Android-${{ needs.prepare.outputs.version }}.apk
           if-no-files-found: error
+
+  build-pages:
+    runs-on: ubuntu-latest
+    needs: prepare
+    env:
+      APP_VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Export Kobweb landing as static site
+        run: ./scripts/landing-pages.sh build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: landing/.kobweb/site
+
+  deploy-pages:
+    runs-on: ubuntu-latest
+    needs: build-pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   publish-release:
     runs-on: ubuntu-latest
     needs:
+      - prepare
       - build-macos
       - build-android-apk
-
+      - deploy-pages
     steps:
-      - name: Download DMG artifact
+      - name: Download macOS package
         uses: actions/download-artifact@v4
         with:
-          name: CrossSync-macOS-dmg
+          name: CrossSync-macOS-${{ needs.prepare.outputs.version }}
           path: release-assets/macos
 
-      - name: Download APK artifact
+      - name: Download Android package
         uses: actions/download-artifact@v4
         with:
-          name: CrossSync-android-apk
+          name: CrossSync-Android-${{ needs.prepare.outputs.version }}
           path: release-assets/android
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: release-${{ github.run_number }}
-          name: CrossSync release-${{ github.run_number }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: CrossSync v${{ needs.prepare.outputs.version }}
           generate_release_notes: true
           files: |
-            release-assets/macos/*.dmg
-            release-assets/android/*.apk
+            release-assets/macos/CrossSync-macOS-${{ needs.prepare.outputs.version }}.dmg
+            release-assets/android/CrossSync-Android-${{ needs.prepare.outputs.version }}.apk
           body: |
+            CrossSync v${{ needs.prepare.outputs.version }}
+
             Downloads:
-            - macOS (.dmg)
-            - Android (.apk)
+            - macOS: CrossSync-macOS-${{ needs.prepare.outputs.version }}.dmg
+            - Android: CrossSync-Android-${{ needs.prepare.outputs.version }}.apk
 
             Website:
-            - https://maximdvinov.github.io/CrossSync/
+            https://maximdvinov.github.io/CrossSync/

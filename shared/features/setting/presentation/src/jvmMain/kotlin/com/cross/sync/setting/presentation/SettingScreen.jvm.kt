@@ -67,7 +67,9 @@ actual fun SettingScreen(
                 state = state,
                 onToggleLaunchAtStartup = desktopViewModel::toggleLaunchAtSystemStartup,
                 onCycleClipboardAutoClearTimeout = desktopViewModel::cycleClipboardAutoClearTimeout,
-                onCycleQuickAccessHistorySize = desktopViewModel::cycleQuickAccessHistorySize
+                onCycleQuickAccessHistorySize = desktopViewModel::cycleQuickAccessHistorySize,
+                onCycleNotificationHistoryRetention = desktopViewModel::cycleNotificationHistoryRetention,
+                onCycleDesktopNotificationDelivery = desktopViewModel::cycleDesktopNotificationDelivery,
             )
 
             CategorySetting(

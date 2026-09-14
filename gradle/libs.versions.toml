@@ -1,45 +1,44 @@
 [versions]
 # Build
 aesCbc = "0.5.1"
-agp = "9.3.0"
+agp = "9.3.2"
 cryptoRand = "0.6.0"
-ddPlist = "1.28"
+ddPlist = "1.30"
 encodingBase64 = "1.2.3"
-kotlin = "2.3.21"
-compose-hot-reload = "1.0.0"
-kobweb = "0.24.0"
+kotlin = "2.4.20"
+kobweb = "0.25.1"
 
 # Compose
-compose = "1.10.0" # BOM for JetBrains Compose libraries
-coilCompose = "3.3.0"
+compose = "1.12.0" # Compose Multiplatform
+coilCompose = "3.6.2"
 composeIcons = "1.1.1"
-androidx-activityCompose = "1.12.3"
-htmlconverter = "1.1.0"
-material3 = "1.9.0"
+androidx-activityCompose = "1.13.0"
+htmlconverter = "1.1.1"
+material3 = "1.12.0-alpha03"
 
 # AndroidX
-compose-multiplatform-lifecycle = "2.10.0-alpha08"
+compose-multiplatform-lifecycle = "2.11.0"
 
 # Kotlin & Coroutines
-kotlinx-coroutines = "1.10.2"
-kotlinx-collections-immutable = "0.4.0"
-kotlinx-serialization = "1.10.0"
-kotlinx-datetime = "0.7.1"
+kotlinx-coroutines = "1.11.0"
+kotlinx-collections-immutable = "0.5.2"
+kotlinx-serialization = "1.11.0"
+kotlinx-datetime = "0.8.0"
 
 # Networking - Ktor
-ktor = "3.4.0"
+ktor = "3.5.2"
 
 # Dependency Injection - Koin
-koin = "4.1.1"
+koin = "4.2.2"
 
 # Database
 qrKit = "3.1.3"
-room = "2.8.4"
-scanner = "0.6.0"
+room = "2.8.5"
+scanner = "0.7.2"
 secureRandom = "0.4.0"
-slf4jSimple = "2.0.17"
-sqlite = "2.6.2"
-ksp = "2.3.11"
+slf4jSimple = "2.0.19"
+sqlite = "2.7.1"
+ksp = "2.3.12"
 
 # Multiplatform Helpers
 multiplatformSettings = "1.3.0"
@@ -47,16 +46,17 @@ napier = "2.7.1"
 
 # Desktop Specific
 jkeymasterVersion = "1.3"
-jna = "5.18.1"
+jna = "5.19.1"
 jnativehook = "2.2.2"
-composenativetray = "1.0.10"
-ui = "1.10.0-beta01"
-core = "1.17.0"
-lifecycleService = "2.10.0"
+composenativetray = "2.1.1"
+ui = "1.12.0"
+core = "1.19.0"
+lifecycleService = "2.11.0"
 
 # Navigation
-nav3Core = "1.0.0-alpha06"
-lifecycleViewmodelNav3 = "2.10.0"
+nav3Core = "1.2.0-beta01"
+lifecycleViewmodelNav3 = "2.11.0"
+logback = "1.6.3"
 
 
 [libraries]
@@ -135,7 +135,7 @@ multiplatformSettings = { module = "com.russhwolf:multiplatform-settings-no-arg"
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 
 # Desktop Specific
-composenativetray = { module = "io.github.kdroidfilter:composenativetray", version.ref = "composenativetray" }
+composenativetray = { module = "dev.nucleusframework:composenativetray", version.ref = "composenativetray" }
 tulskiy-jkeymaster = { module = "com.github.tulskiy:jkeymaster", version.ref = "jkeymasterVersion" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 jnativehook = { module = "com.github.kwhat:jnativehook", version.ref = "jnativehook" }
@@ -145,6 +145,9 @@ androidx-lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-s
 # Navigation
 androidx-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "nav3Core" }
 androidx-lifecycle-viewmodel-navigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "compose-multiplatform-lifecycle" }
+
+# Logging
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 
 [plugins]
@@ -161,7 +164,6 @@ kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", vers
 # Compose
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose" }
-compose-hot-reload = { id = "org.jetbrains.compose.hot-reload", version.ref = "compose-hot-reload" }
 kobweb-application = { id = "com.varabyte.kobweb.application", version.ref = "kobweb" }
 
 # Database

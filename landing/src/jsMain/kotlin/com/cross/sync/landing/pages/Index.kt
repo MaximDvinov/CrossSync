@@ -63,23 +63,25 @@ val EnglishCopy = LandingCopy(
     otherLangCode = "ru",
     logoUrl = "/assets/logo.svg",
     title = "CrossSync",
-    description = "Local clipboard synchronization between Android and Desktop without cloud services.",
-    eyebrow = "Kotlin Multiplatform clipboard sync",
-    lead = "CrossSync keeps clipboard history, categories, pairing, and local network transfer in one focused app.",
+    description = "Local clipboard and notification synchronization between Android and Desktop without cloud services.",
+    eyebrow = "Kotlin Multiplatform clipboard and notification sync",
+    lead = "CrossSync keeps clipboard history, Android notifications, pairing, and local network transfer in one focused app.",
     primaryAction = "Open GitHub",
     secondaryAction = "Author profile",
     cards = listOf(
         "Clipboard history" to "Keep copied text, links, and notes available after the original source is gone.",
         "Categories" to "Organize copied items by context and quickly return to what matters.",
         "QR pairing" to "Connect Android to the desktop server with a local QR pairing flow.",
-        "LAN first" to "Move data between devices over your network instead of a cloud clipboard."
+        "LAN first" to "Move data between devices over your network instead of a cloud clipboard.",
+        "Notification sync" to "See Android notifications on Desktop with grouped history, media previews, and supported actions or replies."
     ),
-    workflowTitle = "Copy on one device, continue on another",
-    workflowText = "The desktop app watches the local clipboard, Android connects to it, and copied content becomes available where you need it next.",
+    workflowTitle = "Keep clipboard and notifications in sync",
+    workflowText = "The desktop app watches the local clipboard and receives Android notifications over LAN, so copied content and incoming messages stay available where you need them.",
     steps = listOf(
         "Desktop stores clipboard history locally.",
         "Android pairs with the desktop server over LAN.",
-        "Selected clipboard items can be sent or reused across devices."
+        "Selected clipboard items can be sent or reused across devices.",
+        "Android notifications appear on Desktop with configurable previews and supported actions."
     ),
     techTitle = "Tech stack",
     statusTitle = "Current state",
@@ -95,23 +97,25 @@ val RussianCopy = LandingCopy(
     otherLangCode = "en",
     logoUrl = "/assets/logo.svg",
     title = "CrossSync",
-    description = "Локальная синхронизация буфера обмена между Android и Desktop без облачных сервисов.",
-    eyebrow = "Kotlin Multiplatform синхронизация буфера",
-    lead = "CrossSync объединяет историю буфера, категории, pairing и передачу по локальной сети в одном приложении.",
+    description = "Локальная синхронизация буфера обмена и уведомлений между Android и Desktop без облачных сервисов.",
+    eyebrow = "Kotlin Multiplatform синхронизация буфера и уведомлений",
+    lead = "CrossSync объединяет историю буфера, Android-уведомления, pairing и передачу по локальной сети в одном приложении.",
     primaryAction = "Открыть GitHub",
     secondaryAction = "Профиль автора",
     cards = listOf(
         "История буфера" to "Текст, ссылки и заметки остаются доступны после копирования.",
         "Категории" to "Сохраняйте элементы по контекстам и быстро возвращайтесь к нужному.",
         "QR pairing" to "Android подключается к desktop-серверу через локальный QR flow.",
-        "LAN first" to "Данные передаются между устройствами в вашей сети, без облачного буфера."
+        "LAN first" to "Данные передаются между устройствами в вашей сети, без облачного буфера.",
+        "Синхронизация уведомлений" to "Уведомления Android появляются на Desktop: с группировкой, медиа-превью, действиями и ответами, если их поддерживает приложение."
     ),
-    workflowTitle = "Скопировал на одном устройстве, продолжил на другом",
-    workflowText = "Desktop-приложение отслеживает локальный буфер, Android подключается к нему, а скопированный контент становится доступен там, где нужен.",
+    workflowTitle = "Синхронизируйте буфер и уведомления",
+    workflowText = "Desktop-приложение отслеживает локальный буфер и получает уведомления Android по LAN, поэтому скопированный контент и входящие сообщения доступны там, где нужны.",
     steps = listOf(
         "Desktop сохраняет локальную историю буфера.",
         "Android подключается к серверу в локальной сети.",
-        "Выбранные элементы можно отправлять и переиспользовать между устройствами."
+        "Выбранные элементы можно отправлять и переиспользовать между устройствами.",
+        "Уведомления Android появляются на Desktop с настраиваемым превью и поддерживаемыми действиями."
     ),
     techTitle = "Технологии",
     statusTitle = "Сейчас",
@@ -147,7 +151,7 @@ private fun PageMetadata(copy: LandingCopy) {
     LaunchedEffect(copy.lang) {
         val canonical = if (copy.lang == "ru") "https://maximdvinov.github.io/CrossSync/ru/" else "https://maximdvinov.github.io/CrossSync/"
         document.documentElement?.setAttribute("lang", copy.lang)
-        document.title = if (copy.lang == "ru") "${copy.title} | Локальная синхронизация буфера" else "${copy.title} | Local clipboard sync"
+        document.title = if (copy.lang == "ru") "${copy.title} | Локальная синхронизация буфера и уведомлений" else "${copy.title} | Local clipboard and notification sync"
         setMeta("description", copy.description)
         setMeta("robots", "index, follow, max-image-preview:large")
         setMeta("og:title", copy.title, property = true)
@@ -303,7 +307,7 @@ private fun Details(copy: LandingCopy) {
         attr("aria-label", if (copy.lang == "ru") "Технические детали проекта" else "Project technical details")
     }) {
         InfoBlock(copy.techTitle, "Kotlin Multiplatform, Compose Multiplatform, Ktor WebSocket, Koin, Room, SQLite.")
-        InfoBlock(copy.statusTitle, if (copy.lang == "ru") "История, категории, Android-клиент, desktop-клиент, QR pairing и текстовая синхронизация." else "History, categories, Android client, desktop client, QR pairing, and text synchronization.")
+        InfoBlock(copy.statusTitle, if (copy.lang == "ru") "История, категории, Android-клиент, desktop-клиент, QR pairing, синхронизация уведомлений и текстовая синхронизация." else "History, categories, Android client, desktop client, QR pairing, notification sync, and text synchronization.")
         InfoBlock(copy.roadmapTitle, if (copy.lang == "ru") "Синхронизация изображений и файлов, расширение desktop-платформ, публичные релизы." else "Image and file sync, broader desktop support, and public release artifacts.")
     }
 }

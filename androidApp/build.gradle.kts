@@ -3,6 +3,9 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+val appVersion = providers.gradleProperty("appVersion").orElse("1.0.0").get()
+val appVersionCode = providers.gradleProperty("appVersionCode").orElse("1").get().toInt()
+
 android {
     namespace = "com.cross.sync"
     compileSdk = 37
@@ -12,8 +15,8 @@ android {
         targetSdk = 37
 
         applicationId = "com.cross.sync.androidApp"
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersion
     }
 }
 
@@ -36,6 +39,10 @@ dependencies {
     implementation(projects.shared.features.clipboard.data)
     implementation(projects.shared.features.clipboard.domain)
     implementation(projects.shared.features.syncing.data)
+    implementation(projects.shared.features.syncing.domain)
+    implementation(projects.shared.features.notifications.data)
+    implementation(projects.shared.features.notifications.domain)
+    implementation(projects.shared.features.setting.domain)
     implementation(projects.shared.core.ui)
 
 }

@@ -8,8 +8,9 @@ KOBWEB_REUSE_SERVER=true
 if [[ "${CI:-}" == "true" ]]; then
   KOBWEB_REUSE_SERVER=false
 fi
+APP_VERSION="${APP_VERSION:-1.0.0}"
 
-GRADLE_CMD=(./gradlew :landing:kobwebExport -PkobwebEnv=DEV -PkobwebRunLayout=FULLSTACK -PkobwebBuildTarget=RELEASE -PkobwebExportLayout=STATIC -PkobwebReuseServer="$KOBWEB_REUSE_SERVER")
+GRADLE_CMD=(./gradlew :landing:kobwebExport -PappVersion="$APP_VERSION" -PkobwebEnv=DEV -PkobwebRunLayout=FULLSTACK -PkobwebBuildTarget=RELEASE -PkobwebExportLayout=STATIC -PkobwebReuseServer="$KOBWEB_REUSE_SERVER")
 
 usage() {
   echo "Usage: ./scripts/landing-pages.sh <build|publish>"

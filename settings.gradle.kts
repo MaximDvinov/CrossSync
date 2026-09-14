@@ -45,6 +45,11 @@ include(":shared:features:clipboard:di")
 //include(":shared:features:clipboard:db")
 include(":shared:features:clipboard:presentation")
 
+include(":shared:features:notifications:domain")
+include(":shared:features:notifications:data")
+include(":shared:features:notifications:presentation")
+include(":shared:features:notifications:di")
+
 include(":shared:features:syncing:network")
 include(":shared:features:syncing:domain")
 include(":shared:features:syncing:data")

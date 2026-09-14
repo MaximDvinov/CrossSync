@@ -5,14 +5,13 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.android.kmp.library)
-    alias(libs.plugins.compose.hot.reload)
     alias(libs.plugins.kotlinx.serialization)
 }
 
 kotlin {
     android {
         namespace = "com.cross.sync.core.ui"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }

@@ -3,6 +3,7 @@ package com.cross.sync.syncing.network
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.clipboard.domain.repository.SystemClipboardRepository
+import com.cross.sync.notifications.domain.entity.NotificationActionRequest
 import com.cross.sync.syncing.domain.entity.DeviceData
 import com.cross.sync.syncing.domain.entity.PairingState
 import com.cross.sync.syncing.domain.entity.ServerEvent
@@ -229,23 +230,47 @@ class LocalServer(
                     call.respond(HttpStatusCode.BadRequest, "Cannot decrypt sync data")
                     return@post
                 }
-                val copiedData = runCatching {
+                val payload = runCatching {
                     val payload = json.decodeFromString<SyncPayloadDto>(decryptedData)
-                    when (payload) {
-                        is SyncPayloadDto.CopiedDataPayload -> payload.data.toDomain()
-                        else -> error("Unsupported sync payload")
+                    payload
+                }.getOrNull()
+
+                when (payload) {
+                    is SyncPayloadDto.CopiedDataPayload -> {
+                        serverEvent.emit(ServerEvent.ReceivedCopiedData(payload.data.toDomain()))
                     }
-                }.getOrElse {
-                    // Keep compatibility with the previous unwrapped payload format.
-                    runCatching {
-                        json.decodeFromString<CopiedDataDto>(decryptedData).toDomain()
+
+                    is SyncPayloadDto.NotificationPayload -> {
+                        serverEvent.emit(
+                            ServerEvent.ReceivedNotification(
+                                deviceId = device.id,
+                                notification = payload.notification.copy(deviceId = device.id),
+                            )
+                        )
+                    }
+
+                    is SyncPayloadDto.NotificationRemovedPayload -> {
+                        serverEvent.emit(
+                            ServerEvent.RemovedNotification(
+                                deviceId = device.id,
+                                removal = payload.removal,
+                            )
+                        )
+                    }
+
+                    null -> runCatching {
+                        val copiedData = json.decodeFromString<CopiedDataDto>(decryptedData).toDomain()
+                        serverEvent.emit(ServerEvent.ReceivedCopiedData(copiedData))
                     }.getOrElse {
                         call.respond(HttpStatusCode.BadRequest, "Invalid sync payload")
                         return@post
                     }
-                }
-                serverEvent.emit(ServerEvent.ReceivedCopiedData(copiedData))
 
+                    else -> {
+                        call.respond(HttpStatusCode.BadRequest, "Unsupported sync payload")
+                        return@post
+                    }
+                }
                 call.respond(HttpStatusCode.OK)
             }
         }
@@ -342,6 +367,25 @@ class LocalServer(
         }
 
         return firstError?.let(Result.Companion::failure) ?: Result.success(Unit)
+    }
+
+    override suspend fun sendNotificationAction(action: NotificationActionRequest): Result<Unit> {
+        val session = synchronized(connections) { connections[action.deviceId] }
+            ?: return Result.failure(IllegalStateException("Android device is offline"))
+        val device = deviceRepository.getDeviceById(action.deviceId)
+            ?: return Result.failure(IllegalArgumentException("Unknown device"))
+
+        return runCatching {
+            sendPayload(
+                session = session,
+                secretKey = device.secretKey,
+                payload = SyncPayloadDto.NotificationActionPayload(action),
+            )
+        }.onFailure {
+            synchronized(connections) {
+                if (connections[action.deviceId] === session) connections.remove(action.deviceId)
+            }
+        }
     }
 
     private suspend fun sendSnapshot(

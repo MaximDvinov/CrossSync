@@ -3,6 +3,9 @@ package com.cross.sync.syncing.network
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
+import com.cross.sync.notifications.domain.entity.NotificationActionRequest
+import com.cross.sync.notifications.domain.entity.NotificationRemoval
+import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.entity.DeviceData
 import com.cross.sync.syncing.domain.entity.SyncSettingsKeys
@@ -45,6 +48,8 @@ import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.util.appendIfNameAbsent
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,6 +68,10 @@ class ClipboardClient(
     private val messagesFlow = MutableSharedFlow<IncomingCopiedData>(1)
     private val categoryFlow = MutableSharedFlow<Category>(1)
     private val categoryBindingFlow = MutableSharedFlow<CategoryBinding>(1)
+    // Actions are commands with one consumer (the Android sync service). A channel
+    // keeps commands received during reconnect/startup instead of dropping them as
+    // a replay=0 SharedFlow would.
+    private val notificationActionChannel = Channel<NotificationActionRequest>(Channel.BUFFERED)
 
     private val connectedState = MutableStateFlow<ClientConnectState>(ClientConnectState.Idle)
 
@@ -241,6 +250,10 @@ class ClipboardClient(
                                         )
                                     }
 
+                                    is SyncPayloadDto.NotificationActionPayload -> {
+                                        notificationActionChannel.send(payload.request)
+                                    }
+
                                     null -> {
                                         // Backward compatibility: previously only CopiedDataDto was sent.
                                         val message = json.decodeFromString<CopiedDataDto>(it)
@@ -292,16 +305,15 @@ class ClipboardClient(
     }
 
     suspend fun sendCopiedData(copiedData: CopiedData): Result<Unit> = runCatchingForApi {
-        client ?: throw ClientException()
-        val device = deviceRepository.getDeviceById(null) ?: throw Exception("Device not found")
-        client!!.post(SEND_ROUTE) {
-            val payload = SyncPayloadDto.CopiedDataPayload(copiedData.toDto())
-            val data = json.encodeToString<SyncPayloadDto>(payload)
+        sendPayloadToServer(SyncPayloadDto.CopiedDataPayload(copiedData.toDto()))
+    }
 
-            setBody(
-                DataPackage(cryptoEngine.encrypt(data, secretKey = device.secretKey))
-            )
-        }
+    suspend fun sendNotification(notification: SyncedNotification): Result<Unit> = runCatchingForApi {
+        sendPayloadToServer(SyncPayloadDto.NotificationPayload(notification))
+    }
+
+    suspend fun removeNotification(removal: NotificationRemoval): Result<Unit> = runCatchingForApi {
+        sendPayloadToServer(SyncPayloadDto.NotificationRemovedPayload(removal))
     }
 
     suspend fun observeCopiedData(): Flow<IncomingCopiedData> {
@@ -316,6 +328,8 @@ class ClipboardClient(
         return categoryBindingFlow
     }
 
+    fun observeNotificationActions(): Flow<NotificationActionRequest> = notificationActionChannel.receiveAsFlow()
+
     fun observeConnectedState(): StateFlow<ClientConnectState> {
         return connectedState
     }
@@ -324,6 +338,15 @@ class ClipboardClient(
         return listOf(setting[SyncSettingsKeys.HOST, ""])
             .plus(setting[SyncSettingsKeys.HOSTS, ""].split(','))
             .normalizedHosts()
+    }
+
+    private suspend fun sendPayloadToServer(payload: SyncPayloadDto) {
+        val httpClient = client ?: throw ClientException()
+        val device = deviceRepository.getDeviceById(null) ?: throw ClientException()
+        val plain = json.encodeToString<SyncPayloadDto>(payload)
+        httpClient.post(SEND_ROUTE) {
+            setBody(DataPackage(cryptoEngine.encrypt(plain, secretKey = device.secretKey)))
+        }
     }
 
     companion object {}

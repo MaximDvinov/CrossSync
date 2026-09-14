@@ -22,7 +22,9 @@ internal fun GeneralSettingDesktop(
     state: SettingState,
     onToggleLaunchAtStartup: () -> Unit,
     onCycleClipboardAutoClearTimeout: () -> Unit,
-    onCycleQuickAccessHistorySize: () -> Unit
+    onCycleQuickAccessHistorySize: () -> Unit,
+    onCycleNotificationHistoryRetention: () -> Unit,
+    onCycleDesktopNotificationDelivery: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -63,6 +65,20 @@ internal fun GeneralSettingDesktop(
                 description = "Specifies how many recent copied items are shown in the Quick Access panel.",
                 trailingText = state.quickAccessHistorySize.toString(),
                 onTrailingClick = onCycleQuickAccessHistorySize
+            )
+
+            SettingGeneralItem(
+                title = "Notification History",
+                description = "Inactive notifications are kept for the selected number of days.",
+                trailingText = "${state.notificationHistoryRetentionDays} days",
+                onTrailingClick = onCycleNotificationHistoryRetention,
+            )
+
+            SettingGeneralItem(
+                title = "macOS Notification Delivery",
+                description = "Choose system notifications, the CrossSync popup, or both.",
+                trailingText = state.desktopNotificationDelivery.label,
+                onTrailingClick = onCycleDesktopNotificationDelivery,
             )
         }
     }

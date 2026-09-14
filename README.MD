@@ -2,7 +2,7 @@
 
 [![Status](https://img.shields.io/badge/status-WIP-orange)](https://github.com/MaximDvinov/CrossSync)
 [![Kotlin](https://img.shields.io/badge/kotlin-2.3.10-blue.svg?logo=kotlin)](http://kotlinlang.org)
-[![Compose](https://img.shields.io/badge/compose-1.10.0-blue.svg?logo=jetpackcompose)](https://www.jetbrains.com/lp/compose-multiplatform)
+[![Compose](https://img.shields.io/badge/compose-1.12.0-blue.svg?logo=jetpackcompose)](https://www.jetbrains.com/lp/compose-multiplatform)
 ![macOS](https://img.shields.io/badge/platform-macOS-blue)
 ![Android](https://img.shields.io/badge/platform-android-green)
 

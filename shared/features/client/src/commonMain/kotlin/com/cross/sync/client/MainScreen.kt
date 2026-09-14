@@ -1,6 +1,7 @@
 package com.cross.sync.client
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -12,6 +13,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
+import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.presentation.ClipboardScreen
 import com.cross.sync.clipboard.presentation.ClipboardSectionHeader
 import com.cross.sync.setting.presentation.SettingScreen
@@ -36,13 +38,29 @@ fun MainScreen(
     modifier: Modifier = Modifier,
     isClient: Boolean,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    onPairRequested: ((() -> Unit), () -> Unit) -> Unit = { onGranted, _ -> onGranted() }
+    onPairRequested: ((() -> Unit), () -> Unit) -> Unit = { onGranted, _ -> onGranted() },
+    sharedText: String? = null,
+    onSharedTextHandled: () -> Unit = {}
 ) {
     val connectDeviceViewModel: ConnectDeviceViewModel = koinInject()
     val settingViewModel: SettingViewModel = koinInject()
 
     val connectState by connectDeviceViewModel.state.collectAsState()
     val backStack = remember { NavBackStack<NavKey>(ClipboardRoute) }
+
+    LaunchedEffect(sharedText, connectState.connectState) {
+        val text = sharedText ?: return@LaunchedEffect
+        if (connectState.connectState is ClientConnectState.Connected) {
+            connectDeviceViewModel.sendCopiedData(
+                CopiedData.Text(
+                    id = text.hashCode().toLong(),
+                    text = text,
+                    applicationId = "android.share"
+                )
+            )
+            onSharedTextHandled()
+        }
+    }
 
     NavDisplay(
         backStack = backStack,

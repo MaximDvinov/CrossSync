@@ -262,5 +262,3 @@ fun DeviceItem(
     }
 }
 
-
-

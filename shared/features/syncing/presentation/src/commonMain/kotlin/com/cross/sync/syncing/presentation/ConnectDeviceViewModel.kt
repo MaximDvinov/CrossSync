@@ -3,6 +3,7 @@ package com.cross.sync.syncing.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cross.sync.clipboard.domain.entity.CopiedData
+import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.clipboard.domain.usecase.GetCopiedDataUseCase
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.entity.DeviceNotInitializedException
@@ -28,7 +29,8 @@ class ConnectDeviceViewModel(
     private val pairToServerUseCase: PairToServerUseCase,
     private val connectToServerUseCase: ConnectToServerUseCase,
     private val sendCopiedDataUseCase: SendCopiedDataUseCase,
-    private val getCopiedDataUseCase: GetCopiedDataUseCase
+    private val getCopiedDataUseCase: GetCopiedDataUseCase,
+    private val localClipboardRepository: LocalClipboardRepository
 ) : ViewModel() {
     private var _state = MutableStateFlow(ConnectDeviceState(ClientConnectState.Idle))
     val state = _state.asStateFlow()
@@ -90,6 +92,7 @@ class ConnectDeviceViewModel(
                 )
             }
 
+            localClipboardRepository.addCopiedData(copiedData)
             sendCopiedDataUseCase(copiedData)
                 .onSuccess {
                     _state.update {
