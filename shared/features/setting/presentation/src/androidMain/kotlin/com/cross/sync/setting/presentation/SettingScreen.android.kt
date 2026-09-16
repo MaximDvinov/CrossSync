@@ -112,6 +112,16 @@ actual fun SettingScreen(
                     onTrailingClick = androidViewModel::cycleClipboardAutoClearTimeout
                 )
                 SettingGeneralItem(
+                    title = "Appearance",
+                    description = "Choose whether CrossSync follows the system, stays light, or stays dark.",
+                    trailingText = state.themeMode.label,
+                    onTrailingClick = {
+                        val themeMode = state.themeMode.next()
+                        androidViewModel.setThemeMode(themeMode)
+                        AppTheme.updateThemeMode(themeMode)
+                    },
+                )
+                SettingGeneralItem(
                     title = "Notification Sync",
                     description = "Sends Android notifications to your paired Mac.",
                     trailingText = if (state.notificationSyncEnabled) "On" else "Off",

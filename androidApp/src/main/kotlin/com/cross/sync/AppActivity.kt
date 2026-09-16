@@ -41,9 +41,7 @@ class AppActivity : ComponentActivity() {
         Napier.base(DebugAntilog())
 
         setContent {
-            ThemeChanged(true)
-
-            AppTheme {
+            AppTheme(onThemeChanged = ::ThemeChanged) {
                 LocalNetworkPermissionGate { onPairRequested ->
                     val systemBarsPadding = WindowInsets.systemBars.asPaddingValues()
                     MainScreen(

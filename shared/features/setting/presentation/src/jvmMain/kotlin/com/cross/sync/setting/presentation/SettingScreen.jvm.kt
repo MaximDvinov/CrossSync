@@ -66,6 +66,10 @@ actual fun SettingScreen(
             GeneralSettingDesktop(
                 state = state,
                 onToggleLaunchAtStartup = desktopViewModel::toggleLaunchAtSystemStartup,
+                onSetThemeMode = { themeMode ->
+                    desktopViewModel.setThemeMode(themeMode)
+                    AppTheme.updateThemeMode(themeMode)
+                },
                 onCycleClipboardAutoClearTimeout = desktopViewModel::cycleClipboardAutoClearTimeout,
                 onCycleQuickAccessHistorySize = desktopViewModel::cycleQuickAccessHistorySize,
                 onCycleNotificationHistoryRetention = desktopViewModel::cycleNotificationHistoryRetention,

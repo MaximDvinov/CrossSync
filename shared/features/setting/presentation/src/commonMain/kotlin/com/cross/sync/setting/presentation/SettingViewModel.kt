@@ -7,6 +7,7 @@ import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.setting.domain.DesktopNotificationDelivery
 import com.cross.sync.syncing.domain.entity.DeviceData
 import com.cross.sync.syncing.domain.entity.PairingState
+import com.cross.sync.theme.AppThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class SettingState(
     val launchAtSystemStartup: Boolean = false,
     val localization: String = "English",
+    val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     val clipboardAutoClearTimeoutDays: Int = 15,
     val quickAccessHistorySize: Int = 50,
     val notificationSyncEnabled: Boolean = true,
@@ -35,6 +37,5 @@ abstract class SettingViewModel() : ViewModel() {
     internal val _state = MutableStateFlow(SettingState())
     val state = _state.asStateFlow()
 }
-
 
 

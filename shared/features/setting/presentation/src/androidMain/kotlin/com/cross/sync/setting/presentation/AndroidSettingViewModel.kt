@@ -7,6 +7,7 @@ import com.cross.sync.syncing.domain.entity.SyncSettingsKeys
 import com.cross.sync.syncing.domain.repository.DeviceRepository
 import com.cross.sync.syncing.domain.repository.SyncRepository
 import com.cross.sync.syncing.domain.usecases.ConnectToServerUseCase
+import com.cross.sync.theme.AppThemeMode
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import com.russhwolf.settings.set
@@ -26,6 +27,7 @@ class AndroidSettingViewModel(
         _state.update {
             it.copy(
                 clipboardAutoClearTimeoutDays = generalSettings.clipboardAutoClearTimeoutDays,
+                themeMode = AppThemeMode.fromStoredValue(generalSettings.themeMode),
                 notificationSyncEnabled = generalSettings.notificationSyncEnabled,
                 notificationContentEnabled = generalSettings.notificationContentEnabled,
                 excludedApplicationIds = settingPreferencesStore.getExcludedApplicationIds().sorted(),
@@ -52,6 +54,11 @@ class AndroidSettingViewModel(
         )
         settingPreferencesStore.setClipboardAutoClearTimeoutDays(newValue)
         _state.update { it.copy(clipboardAutoClearTimeoutDays = newValue) }
+    }
+
+    fun setThemeMode(themeMode: AppThemeMode) {
+        settingPreferencesStore.setThemeMode(themeMode.name)
+        _state.update { it.copy(themeMode = themeMode) }
     }
 
     fun toggleNotificationSync() {

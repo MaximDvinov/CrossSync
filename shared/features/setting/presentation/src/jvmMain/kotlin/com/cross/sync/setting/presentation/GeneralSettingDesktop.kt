@@ -16,11 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.cross.sync.theme.AppTheme
+import com.cross.sync.theme.AppThemeMode
 
 @Composable
 internal fun GeneralSettingDesktop(
     state: SettingState,
     onToggleLaunchAtStartup: () -> Unit,
+    onSetThemeMode: (AppThemeMode) -> Unit,
     onCycleClipboardAutoClearTimeout: () -> Unit,
     onCycleQuickAccessHistorySize: () -> Unit,
     onCycleNotificationHistoryRetention: () -> Unit,
@@ -52,6 +54,15 @@ internal fun GeneralSettingDesktop(
                     onToggle = onToggleLaunchAtStartup
                 )
             }
+
+            SettingGeneralItem(
+                title = "Appearance",
+                description = "Choose whether CrossSync follows the system, stays light, or stays dark.",
+                trailingText = state.themeMode.label,
+                onTrailingClick = {
+                    onSetThemeMode(state.themeMode.next())
+                }
+            )
 
             SettingGeneralItem(
                 title = "Clipboard Data Auto-Clear Timeout",

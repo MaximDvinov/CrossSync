@@ -13,6 +13,7 @@ import com.cross.sync.syncing.domain.entity.PairingState
 import com.cross.sync.syncing.domain.usecases.AddDeviceUseCase
 import com.cross.sync.syncing.domain.usecases.DeleteDeviceUseCase
 import com.cross.sync.syncing.domain.usecases.ObserveDevicesUseCase
+import com.cross.sync.theme.AppThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -37,6 +38,7 @@ class DesktopSettingViewModel(
             it.copy(
                 launchAtSystemStartup = launchAtSystemStartup,
                 localization = generalSettings.localization,
+                themeMode = AppThemeMode.fromStoredValue(generalSettings.themeMode),
                 clipboardAutoClearTimeoutDays = generalSettings.clipboardAutoClearTimeoutDays,
                 quickAccessHistorySize = generalSettings.quickAccessHistorySize,
                 notificationHistoryRetentionDays = generalSettings.notificationHistoryRetentionDays,
@@ -128,6 +130,11 @@ class DesktopSettingViewModel(
         )
         settingPreferencesStore.setClipboardAutoClearTimeoutDays(newValue)
         _state.update { it.copy(clipboardAutoClearTimeoutDays = newValue) }
+    }
+
+    fun setThemeMode(themeMode: AppThemeMode) {
+        settingPreferencesStore.setThemeMode(themeMode.name)
+        _state.update { it.copy(themeMode = themeMode) }
     }
 
     fun cycleQuickAccessHistorySize() {

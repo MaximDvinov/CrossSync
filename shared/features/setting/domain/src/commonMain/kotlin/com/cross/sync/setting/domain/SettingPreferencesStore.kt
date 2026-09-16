@@ -28,6 +28,7 @@ enum class DesktopNotificationDelivery(
 data class GeneralSettingsPreferences(
     val launchAtSystemStartup: Boolean = false,
     val localization: String = "English",
+    val themeMode: String = "SYSTEM",
     val clipboardAutoClearTimeoutDays: Int = 15,
     val quickAccessHistorySize: Int = 50,
     val notificationSyncEnabled: Boolean = true,
@@ -43,6 +44,7 @@ class SettingPreferencesStore(
         return GeneralSettingsPreferences(
             launchAtSystemStartup = settings[KEY_LAUNCH_AT_SYSTEM_STARTUP, false],
             localization = settings[KEY_LOCALIZATION, DEFAULT_LOCALIZATION],
+            themeMode = settings[KEY_THEME_MODE, DEFAULT_THEME_MODE],
             clipboardAutoClearTimeoutDays = settings[KEY_AUTO_CLEAR_DAYS, DEFAULT_AUTO_CLEAR_DAYS],
             quickAccessHistorySize = settings[KEY_QUICK_ACCESS_HISTORY_SIZE, DEFAULT_QUICK_ACCESS_HISTORY_SIZE],
             notificationSyncEnabled = settings[KEY_NOTIFICATION_SYNC_ENABLED, true],
@@ -67,6 +69,10 @@ class SettingPreferencesStore(
 
     fun setLocalization(localization: String) {
         settings[KEY_LOCALIZATION] = localization
+    }
+
+    fun setThemeMode(themeMode: String) {
+        settings[KEY_THEME_MODE] = themeMode
     }
 
     fun setClipboardAutoClearTimeoutDays(days: Int) {
@@ -132,6 +138,7 @@ class SettingPreferencesStore(
     companion object {
         private const val KEY_LAUNCH_AT_SYSTEM_STARTUP = "setting.launchAtSystemStartup"
         private const val KEY_LOCALIZATION = "setting.localization"
+        private const val KEY_THEME_MODE = "setting.themeMode"
         private const val KEY_AUTO_CLEAR_DAYS = "setting.clipboardAutoClearTimeoutDays"
         private const val KEY_QUICK_ACCESS_HISTORY_SIZE = "setting.quickAccessHistorySize"
         private const val KEY_NOTIFICATION_SYNC_ENABLED = "setting.notificationSyncEnabled"
@@ -144,6 +151,7 @@ class SettingPreferencesStore(
         private const val EXCLUDED_SEPARATOR = "|"
 
         const val DEFAULT_LOCALIZATION = "English"
+        const val DEFAULT_THEME_MODE = "SYSTEM"
         const val DEFAULT_AUTO_CLEAR_DAYS = 15
         const val DEFAULT_QUICK_ACCESS_HISTORY_SIZE = 50
         const val DEFAULT_NOTIFICATION_HISTORY_RETENTION_DAYS = 7
