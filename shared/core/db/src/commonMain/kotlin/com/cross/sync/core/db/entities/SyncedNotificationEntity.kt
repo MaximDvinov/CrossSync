@@ -13,6 +13,7 @@ data class SyncedNotificationEntity(
     val appName: String,
     val title: String,
     val body: String,
+    val shortCriticalText: String,
     val postedAt: Long,
     val updatedAt: Long,
     val isActive: Boolean,

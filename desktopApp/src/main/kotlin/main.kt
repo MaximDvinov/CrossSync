@@ -40,6 +40,7 @@ import windows.QuickClipboardWindow
 import windows.MacOsLiveUpdateChip
 import kotlin.time.ExperimentalTime
 import notifications.NotificationBannerCoordinator
+import notifications.MacOsLiveUpdateStatusItem
 import windows.MacOsNotificationPopup
 
 val desktopModule = module {
@@ -177,19 +178,17 @@ fun main() = application {
             },
             globalHotkeyManager = globalHotkeyManager,
             pairingState = pairingState,
-            liveUpdateNotification = liveUpdateNotification,
-            onShowLiveUpdateChip = { showLiveUpdateChip = true },
+        )
+
+        MacOsLiveUpdateStatusItem(
+            notification = liveUpdateNotification,
+            onClick = { showLiveUpdateChip = true },
         )
 
         MacOsLiveUpdateChip(
             notification = liveUpdateNotification,
             visible = showLiveUpdateChip,
             onDismiss = { showLiveUpdateChip = false },
-            onOpenNotifications = {
-                showLiveUpdateChip = false
-                selectedHomeTab = HomeTab.NOTIFICATIONS
-                generalWindowShowed = GeneralWindowState.GENERAL
-            },
         )
 
         MacOsNotificationPopup(

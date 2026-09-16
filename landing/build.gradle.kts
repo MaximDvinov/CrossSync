@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.cross.sync.landing"
-version = providers.gradleProperty("appVersion").orElse("1.0.0").get()
+version = providers.gradleProperty("appVersion").orElse("1.5.1").get()
 
 kobweb {
     app {

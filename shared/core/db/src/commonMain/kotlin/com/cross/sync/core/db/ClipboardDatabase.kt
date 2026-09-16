@@ -26,7 +26,7 @@ import kotlinx.coroutines.IO
         DeviceEntity::class,
         SyncedNotificationEntity::class,
     ],
-    version = 5,
+    version = 6,
 )
 @TypeConverters(CopiedDataConverters::class)
 @ConstructedBy(AppDatabaseConstructor::class)
@@ -47,7 +47,7 @@ fun getRoomDatabase(
     builder: RoomDatabase.Builder<AppDatabase>,
 ): AppDatabase {
     return builder
-        .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
         .build()
@@ -98,6 +98,14 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(connection: androidx.sqlite.SQLiteConnection) {
         connection.prepare(
             "ALTER TABLE `synced_notifications` ADD COLUMN `mediaJson` TEXT NOT NULL DEFAULT ''"
+        ).use { it.step() }
+    }
+}
+
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(connection: androidx.sqlite.SQLiteConnection) {
+        connection.prepare(
+            "ALTER TABLE `synced_notifications` ADD COLUMN `shortCriticalText` TEXT NOT NULL DEFAULT ''"
         ).use { it.step() }
     }
 }

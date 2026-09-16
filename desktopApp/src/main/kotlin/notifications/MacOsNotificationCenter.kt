@@ -79,20 +79,21 @@ internal object MacOsPopupBridge {
         window.requestFocus()
     }
 
-    private fun statusItemScreenPoint(): Point? = runCatching {
-        // Do not load another native library instance. Use the singleton that the current
-        // Tray composable already registered for its NSStatusItem.
-        val coordinates = IntArray(2)
-        val bridgeClass = Class.forName(
-            "dev.nucleusframework.composenativetray.lib.mac.MacNativeBridge",
-        )
-        val method = bridgeClass.getDeclaredMethod(
-            "nativeGetStatusItemPosition",
-            IntArray::class.java,
-        )
-        val found = (method.invoke(null, coordinates) as Int) != 0
-        if (found) Point(coordinates[0], coordinates[1]) else null
-    }.getOrNull()
+    private fun statusItemScreenPoint(): Point? {
+        return MacOsLiveUpdateStatusItemBridge.statusItemScreenPoint() ?: runCatching {
+            // Fall back to the ComposeNativeTray item when the Live Update item is not ready.
+            val coordinates = IntArray(2)
+            val bridgeClass = Class.forName(
+                "dev.nucleusframework.composenativetray.lib.mac.MacNativeBridge",
+            )
+            val method = bridgeClass.getDeclaredMethod(
+                "nativeGetStatusItemPosition",
+                IntArray::class.java,
+            )
+            val found = (method.invoke(null, coordinates) as Int) != 0
+            if (found) Point(coordinates[0], coordinates[1]) else null
+        }.getOrNull()
+    }
 
     private fun screenContaining(point: Point): Rectangle =
         GraphicsEnvironment.getLocalGraphicsEnvironment()

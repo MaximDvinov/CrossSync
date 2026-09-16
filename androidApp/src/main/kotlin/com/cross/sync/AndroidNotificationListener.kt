@@ -312,6 +312,7 @@ private fun StatusBarNotification.toSyncedNotification(
         appName = appName,
         title = if (includeContent) preview.title else "New notification",
         body = if (includeContent) preview.body else "Preview hidden on phone",
+        shortCriticalText = notification.shortCriticalText(),
         postedAt = postTime,
         updatedAt = System.currentTimeMillis(),
         isOngoing = isOngoing,
@@ -472,6 +473,14 @@ private fun Notification.preview(): NotificationPreview {
     )
 }
 
+private fun Notification.shortCriticalText(): String {
+    return extras.getCharSequence(SHORT_CRITICAL_TEXT_EXTRA)
+        ?.toString()
+        ?.trim()
+        ?.take(MAX_SHORT_CRITICAL_TEXT_LENGTH)
+        .orEmpty()
+}
+
 @Suppress("DEPRECATION")
 private fun Bundle.messages(key: String): List<String> {
     return messageBundles(key)
@@ -507,3 +516,6 @@ private fun Notification.kind(): NotificationKind {
 }
 
 private fun CharSequence.asNotificationText(): String = toString().trim().take(1_000)
+
+private const val SHORT_CRITICAL_TEXT_EXTRA = "android.shortCriticalText"
+private const val MAX_SHORT_CRITICAL_TEXT_LENGTH = 7

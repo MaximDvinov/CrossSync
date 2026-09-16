@@ -21,7 +21,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
 }
 
-val appVersion = providers.gradleProperty("appVersion").orElse("1.0.0").get()
+val appVersion = providers.gradleProperty("appVersion").orElse("1.5.1").get()
 
 val desktopMainClass = "MainKt"
 val desktopJvmArgs = listOf(
@@ -57,6 +57,8 @@ abstract class CompileMacNotificationBridgeTask : DefaultTask() {
                 "swiftc",
                 "-emit-library",
                 source.get().asFile.absolutePath,
+                "-framework",
+                "AppKit",
                 "-framework",
                 "UserNotifications",
                 "-o",
@@ -178,9 +180,12 @@ tasks.register<RunDetachedTask>("runDetached") {
     group = "application"
     description = "Runs the desktop app in a separate process without blocking Gradle."
 
-    dependsOn(tasks.named("classes"))
+    dependsOn(tasks.named("classes"), tasks.named("prepareAppResources"))
     classpath.from(configurations.getByName("runtimeClasspath"))
     mainClass.set(desktopMainClass)
-    jvmArgs.set(desktopJvmArgs)
+    jvmArgs.set(
+        desktopJvmArgs +
+            "-Dcompose.application.resources.dir=${layout.buildDirectory.dir("compose/tmp/prepareAppResources").get().asFile.absolutePath}",
+    )
     workingDir.set(layout.projectDirectory)
 }

@@ -28,6 +28,7 @@ import compose.icons.feathericons.Bell
 fun TopBar(
     onClose: (() -> Unit)?,
     onOpenSettings: (() -> Unit)? = null,
+    onOpenHome: (() -> Unit)? = null,
     onOpenNotifications: (() -> Unit)? = null,
     actionButtonSize: Dp = 32.dp,
     logoSize: Dp = 32.dp,
@@ -47,7 +48,11 @@ fun TopBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .clickable(enabled = onOpenHome != null) {
+                    onOpenHome?.invoke()
+                },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {

@@ -1,5 +1,87 @@
 import Foundation
+import AppKit
 import UserNotifications
+
+public typealias CrossSyncLiveUpdateAction = @convention(c) () -> Void
+
+private final class CrossSyncLiveUpdateStatusItemController: NSObject {
+    private var statusItem: NSStatusItem?
+    private var action: CrossSyncLiveUpdateAction?
+
+    func update(title: String, iconBase64: String?, action: CrossSyncLiveUpdateAction?) {
+        performOnMain { [weak self] in
+            guard let self else { return }
+
+            if title.isEmpty {
+                if let statusItem {
+                    NSStatusBar.system.removeStatusItem(statusItem)
+                    self.statusItem = nil
+                }
+                self.action = nil
+                return
+            }
+
+            self.action = action
+            let statusItem = self.statusItem ?? NSStatusBar.system.statusItem(
+                withLength: NSStatusItem.variableLength,
+            )
+            self.statusItem = statusItem
+            if let button = statusItem.button {
+                button.image = image(from: iconBase64)
+                button.title = title
+                button.imagePosition = .imageLeading
+                button.target = self
+                button.action = #selector(handleClick)
+                button.setAccessibilityLabel("CrossSync Live Update")
+            }
+        }
+    }
+
+    func screenPoint() -> NSPoint? {
+        if Thread.isMainThread {
+            return screenPointOnMain()
+        }
+        return DispatchQueue.main.sync { screenPointOnMain() }
+    }
+
+    @objc private func handleClick() {
+        action?()
+    }
+
+    private func image(from base64: String?) -> NSImage? {
+        guard
+            let base64,
+            let data = Data(base64Encoded: base64),
+            let image = NSImage(data: data)
+        else {
+            return nil
+        }
+
+        image.size = NSSize(width: 18, height: 18)
+        return image
+    }
+
+    private func screenPointOnMain() -> NSPoint? {
+        guard
+            let button = statusItem?.button,
+            let window = button.window
+        else {
+            return nil
+        }
+
+        let buttonRect = button.convert(button.bounds, to: nil)
+        let screenRect = window.convertToScreen(buttonRect)
+        return NSPoint(x: screenRect.midX, y: screenRect.midY)
+    }
+
+    private func performOnMain(_ action: @escaping () -> Void) {
+        if Thread.isMainThread {
+            action()
+        } else {
+            DispatchQueue.main.async(execute: action)
+        }
+    }
+}
 
 private final class CrossSyncNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(
@@ -16,6 +98,31 @@ private final class CrossSyncNotificationDelegate: NSObject, UNUserNotificationC
 }
 
 private let notificationDelegate = CrossSyncNotificationDelegate()
+private let liveUpdateStatusItemController = CrossSyncLiveUpdateStatusItemController()
+
+@_cdecl("crosssync_set_live_update_status_item")
+public func crosssync_set_live_update_status_item(
+    _ titlePointer: UnsafePointer<CChar>?,
+    _ iconBase64Pointer: UnsafePointer<CChar>?,
+    _ action: CrossSyncLiveUpdateAction?
+) {
+    let title = titlePointer.map { String(cString: $0) } ?? ""
+    let iconBase64 = iconBase64Pointer.map { String(cString: $0) }
+    liveUpdateStatusItemController.update(title: title, iconBase64: iconBase64, action: action)
+}
+
+@_cdecl("crosssync_get_live_update_status_item_position")
+public func crosssync_get_live_update_status_item_position(
+    _ coordinates: UnsafeMutablePointer<Int32>?
+) -> Int32 {
+    guard let coordinates, let point = liveUpdateStatusItemController.screenPoint() else {
+        return 0
+    }
+
+    coordinates[0] = Int32(point.x)
+    coordinates[1] = Int32(point.y)
+    return 1
+}
 
 @_cdecl("crosssync_publish_notification")
 public func crosssync_publish_notification(

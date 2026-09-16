@@ -2,7 +2,6 @@ package windows
 
 import registerGlobalMousePressListener
 import unregisterGlobalMousePressListener
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -26,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
@@ -34,13 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.runtime.key
 import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.notifications.presentation.NotificationPopupCard
@@ -113,13 +104,21 @@ fun ApplicationScope.MacOsNotificationPopup(
         alwaysOnTop = true,
         undecorated = true,
         transparent = true,
-        resizable = true,
+        resizable = false,
     ) {
         val awtWindow = window
         DisposableEffect(awtWindow) {
             nativeWindow = awtWindow
             awtWindow.minimumSize = Dimension(width.value.toInt(), PopupMinHeight.value.toInt())
             MacOsPopupBridge.prepareDismissible(awtWindow)
+
+            fun dismissOnAwtThread() {
+                if (EventQueue.isDispatchThread()) {
+                    latestOnDismissAll()
+                } else {
+                    EventQueue.invokeLater { latestOnDismissAll() }
+                }
+            }
 
             var receivedFocus = false
             val focusListener = object : java.awt.event.WindowFocusListener {
@@ -128,84 +127,64 @@ fun ApplicationScope.MacOsNotificationPopup(
                 }
 
                 override fun windowLostFocus(event: WindowEvent) {
-                    if (receivedFocus) latestOnDismissAll()
+                    if (receivedFocus) dismissOnAwtThread()
                 }
             }
             val windowListener = object : WindowAdapter() {
                 override fun windowDeactivated(event: WindowEvent) {
-                    if (receivedFocus) latestOnDismissAll()
+                    if (receivedFocus) dismissOnAwtThread()
                 }
             }
+
             awtWindow.addWindowFocusListener(focusListener)
             awtWindow.addWindowListener(windowListener)
-
-            val outsideClickListener = AWTEventListener { event ->
-                val mouseEvent = event as? MouseEvent ?: return@AWTEventListener
-                if (mouseEvent.id != MouseEvent.MOUSE_PRESSED) return@AWTEventListener
-                val sourceWindow = mouseEvent.component?.let(SwingUtilities::getWindowAncestor)
-                if (sourceWindow !== awtWindow) latestOnDismissAll()
-            }
-            Toolkit.getDefaultToolkit().addAWTEventListener(
-                outsideClickListener,
-                java.awt.AWTEvent.MOUSE_EVENT_MASK,
-            )
             onDispose {
                 awtWindow.removeWindowFocusListener(focusListener)
                 awtWindow.removeWindowListener(windowListener)
-                Toolkit.getDefaultToolkit().removeAWTEventListener(outsideClickListener)
                 if (nativeWindow === awtWindow) nativeWindow = null
             }
         }
 
         if (notifications.isNotEmpty()) {
             DisposableEffect(awtWindow) {
-                val mouseListener = registerGlobalMousePressListener { x, y ->
-                    if (!awtWindow.bounds.contains(x, y)) {
+                val outsideClickListener = AWTEventListener { event ->
+                    val mouseEvent = event as? MouseEvent ?: return@AWTEventListener
+                    if (mouseEvent.id != MouseEvent.MOUSE_PRESSED) return@AWTEventListener
+                    val sourceWindow = mouseEvent.component?.let(SwingUtilities::getWindowAncestor)
+                    if (sourceWindow !== awtWindow) {
                         EventQueue.invokeLater { latestOnDismissAll() }
                     }
                 }
-                onDispose { unregisterGlobalMousePressListener(mouseListener) }
+                Toolkit.getDefaultToolkit().addAWTEventListener(
+                    outsideClickListener,
+                    java.awt.AWTEvent.MOUSE_EVENT_MASK,
+                )
+                val mouseListener = registerGlobalMousePressListener { x, y ->
+                    EventQueue.invokeLater {
+                        if (!awtWindow.bounds.contains(x, y)) latestOnDismissAll()
+                    }
+                }
+                onDispose {
+                    Toolkit.getDefaultToolkit().removeAWTEventListener(outsideClickListener)
+                    unregisterGlobalMousePressListener(mouseListener)
+                }
             }
         }
 
         AppTheme {
-            AnimatedVisibility(
-                visible = notifications.isNotEmpty(),
-                modifier = Modifier.fillMaxSize(),
-                enter = slideInVertically(
-                    initialOffsetY = { fullHeight -> -fullHeight },
-                    animationSpec = spring(
-                        dampingRatio = 0.78f,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                ) + expandVertically(
-                    expandFrom = Alignment.Top,
-                    animationSpec = spring(
-                        dampingRatio = 0.82f,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                ) + scaleIn(
-                    initialScale = 0.94f,
-                    transformOrigin = TransformOrigin(0.5f, 0f),
-                    animationSpec = spring(
-                        dampingRatio = 0.78f,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                ) + fadeIn(animationSpec = tween(140)),
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(
+                        width = 1.dp,
+                        color = AppTheme.colors.outline.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(16.dp),
+                    )
+                    .background(AppTheme.colors.background)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(
-                            width = 1.dp,
-                            color = AppTheme.colors.outline.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(16.dp),
-                        )
-                        .background(AppTheme.colors.background)
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
                     notifications.forEach { notification ->
                         val version = notification.popupVersion
                         key(version) {
@@ -275,7 +254,6 @@ fun ApplicationScope.MacOsNotificationPopup(
                         },
                         modifier = Modifier.align(Alignment.End),
                     )
-                }
             }
         }
     }

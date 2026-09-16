@@ -7,6 +7,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -22,7 +24,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -47,6 +51,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -107,8 +112,10 @@ fun NotificationCard(
     modifier: Modifier = Modifier,
     onReplyRequested: () -> Unit = {},
     onInteraction: () -> Unit = {},
+    showBackground: Boolean = true,
     initiallyExpanded: Boolean = false,
     showFullText: Boolean = false,
+    animateExpansion: Boolean = true,
 ) {
     var replyActionIndex by remember(notification.deviceId, notification.notificationKey) { mutableStateOf<Int?>(null) }
     var actionsVisible by remember(
@@ -128,7 +135,13 @@ fun NotificationCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize(animationSpec = tween(220)),
+            .then(
+                if (animateExpansion) {
+                    Modifier.animateContentSize(animationSpec = tween(220))
+                } else {
+                    Modifier
+                },
+            ),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         NotificationContent(
@@ -141,43 +154,52 @@ fun NotificationCard(
             shape = if (actionsVisible && replyAction != null) NotificationTopShape else AppTheme.shapes.round10,
             compact = compact,
             showFullText = showFullText,
+            showBackground = showBackground,
         )
         AnimatedVisibility(
             visible = notification.isActive && actionsVisible,
-            enter = slideInVertically(
-                initialOffsetY = { fullHeight -> fullHeight / 2 },
-                animationSpec = spring(
-                    dampingRatio = 0.78f,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            ) + expandVertically(
-                expandFrom = Alignment.Top,
-                animationSpec = spring(
-                    dampingRatio = 0.82f,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            ) + scaleIn(
-                initialScale = 0.88f,
-                transformOrigin = TransformOrigin(0.5f, 0f),
-                animationSpec = spring(
-                    dampingRatio = 0.78f,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            ) + fadeIn(animationSpec = tween(140)),
-            exit = slideOutVertically(
-                targetOffsetY = { fullHeight -> fullHeight / 3 },
-                animationSpec = spring(
-                    dampingRatio = 0.9f,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            ) + shrinkVertically(
-                shrinkTowards = Alignment.Top,
-                animationSpec = tween(180),
-            ) + scaleOut(
-                targetScale = 0.94f,
-                transformOrigin = TransformOrigin(0.5f, 0f),
-                animationSpec = tween(160),
-            ) + fadeOut(animationSpec = tween(120)),
+            enter = if (animateExpansion) {
+                slideInVertically(
+                    initialOffsetY = { fullHeight -> fullHeight / 2 },
+                    animationSpec = spring(
+                        dampingRatio = 0.78f,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) + expandVertically(
+                    expandFrom = Alignment.Top,
+                    animationSpec = spring(
+                        dampingRatio = 0.82f,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) + scaleIn(
+                    initialScale = 0.88f,
+                    transformOrigin = TransformOrigin(0.5f, 0f),
+                    animationSpec = spring(
+                        dampingRatio = 0.78f,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) + fadeIn(animationSpec = tween(140))
+            } else {
+                EnterTransition.None
+            },
+            exit = if (animateExpansion) {
+                slideOutVertically(
+                    targetOffsetY = { fullHeight -> fullHeight / 3 },
+                    animationSpec = spring(
+                        dampingRatio = 0.9f,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) + shrinkVertically(
+                    shrinkTowards = Alignment.Top,
+                    animationSpec = tween(180),
+                ) + scaleOut(
+                    targetScale = 0.94f,
+                    transformOrigin = TransformOrigin(0.5f, 0f),
+                    animationSpec = tween(160),
+                ) + fadeOut(animationSpec = tween(120))
+            } else {
+                ExitTransition.None
+            },
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 AnimatedVisibility(
@@ -232,12 +254,13 @@ private fun NotificationContent(
     compact: Boolean,
     showMetadata: Boolean = true,
     showFullText: Boolean = false,
+    showBackground: Boolean = true,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(AppTheme.colors.surface)
+            .then(if (showBackground) Modifier.background(AppTheme.colors.surface) else Modifier)
             .clickable(enabled = notification.isActive, onClick = onClick)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -276,7 +299,7 @@ private fun NotificationContent(
                 encoded = encoded,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 220.dp)
+                    .heightIn(max = if (compact) 120.dp else 220.dp)
                     .clip(AppTheme.shapes.round10),
                 contentDescription = "Notification image",
                 contentScale = ContentScale.Crop,
@@ -301,7 +324,7 @@ private fun NotificationText(
                 text = notification.title,
                 maxLines = if (showFullText) Int.MAX_VALUE else if (compact) 2 else 3,
                 overflow = TextOverflow.Ellipsis,
-                style = AppTheme.typography.medium16.copy(color = AppTheme.colors.onSurface),
+                style = AppTheme.typography.medium14.copy(color = AppTheme.colors.onSurface),
             )
         }
         if (notification.body.isNotBlank()) {
@@ -309,7 +332,7 @@ private fun NotificationText(
                 text = notification.body,
                 maxLines = if (showFullText) Int.MAX_VALUE else if (compact) 3 else 5,
                 overflow = TextOverflow.Ellipsis,
-                style = AppTheme.typography.regular14.copy(color = AppTheme.colors.onSurface),
+                style = AppTheme.typography.regular12.copy(color = AppTheme.colors.onSurface),
             )
         }
     }
@@ -434,6 +457,11 @@ fun NotificationPopupCard(
     onReplyRequested: () -> Unit,
     onInteraction: () -> Unit = {},
     viewModel: NotificationViewModel = koinInject(),
+    compact: Boolean = true,
+    showFullText: Boolean = true,
+    initiallyExpanded: Boolean = true,
+    animateExpansion: Boolean = false,
+    showBackground: Boolean = true,
 ) {
     val state by viewModel.state.collectAsState()
     val actionKey = "${notification.deviceId}:${notification.notificationKey}"
@@ -452,9 +480,11 @@ fun NotificationPopupCard(
         },
         onReplyRequested = onReplyRequested,
         onInteraction = onInteraction,
-        compact = true,
-        initiallyExpanded = true,
-        showFullText = true,
+        compact = compact,
+        initiallyExpanded = initiallyExpanded,
+        showFullText = showFullText,
+        animateExpansion = animateExpansion,
+        showBackground = showBackground,
     )
 }
 
@@ -463,48 +493,55 @@ private fun NotificationMetadata(
     notification: SyncedNotification,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().height(intrinsicSize = IntrinsicSize.Min),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         notification.media?.takeIf { it.appIcon != null || it.notificationIcon != null }?.let { media ->
-            Box(modifier = Modifier.size(30.dp)) {
+            Box(modifier = Modifier.size(24.dp)) {
                 media.appIcon?.let { encoded ->
                     NotificationBitmap(
                         encoded = encoded,
-                        modifier = Modifier.size(30.dp).clip(AppTheme.shapes.round50percent),
+                        modifier = Modifier.size(24.dp).clip(AppTheme.shapes.round50percent),
                         contentDescription = "${notification.appName} icon",
                     )
                 }
-                media.notificationIcon?.let { encoded ->
-                    NotificationBitmap(
-                        encoded = encoded,
-                        modifier = Modifier
-                            .size(14.dp)
-                            .align(Alignment.BottomEnd)
-                            .clip(AppTheme.shapes.round50percent)
-                            .background(AppTheme.colors.surface)
-                            .border(1.dp, AppTheme.colors.surface, AppTheme.shapes.round50percent),
-                        contentDescription = "Notification icon",
-                    )
-                }
+//                media.notificationIcon?.let { encoded ->
+//                    NotificationBitmap(
+//                        encoded = encoded,
+//                        modifier = Modifier
+//                            .size(14.dp)
+//                            .align(Alignment.BottomEnd)
+//                            .padding(1.5.dp)
+//                            .clip(AppTheme.shapes.round50percent)
+//                            .background(AppTheme.colors.surface)
+//                            .border(0.dp, AppTheme.colors.surface, AppTheme.shapes.round50percent),
+//                        contentDescription = "Notification icon",
+//                        colorFilter = ColorFilter.tint(AppTheme.colors.onSurface),
+//                    )
+//                }
             }
         }
-        BasicText(
-            text = notification.appName,
-            modifier = Modifier.weight(1f, fill = false),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = AppTheme.typography.regular10.copy(color = AppTheme.colors.onSurfaceVariant),
-        )
+        Row(
+            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+        ) {
+            BasicText(
+                text = notification.appName,
+                modifier = Modifier,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = AppTheme.typography.medium12.copy(color = AppTheme.colors.onSurfaceVariant),
+            )
+        }
+
         BasicText(
             text = notification.postedAt.notificationDateFormat(),
-            modifier = Modifier,
+            modifier = Modifier.fillMaxHeight(),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             style = AppTheme.typography.regular10.copy(
                 color = AppTheme.colors.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+                textAlign = TextAlign.End,
             ),
         )
     }
@@ -516,12 +553,14 @@ private fun NotificationBitmap(
     modifier: Modifier,
     contentDescription: String?,
     contentScale: ContentScale = ContentScale.Fit,
+    colorFilter: ColorFilter? = null,
 ) {
     val bitmap = remember(encoded) { encoded.toNotificationImageBitmap() } ?: return
     Image(
         bitmap = bitmap,
         contentDescription = contentDescription,
         contentScale = contentScale,
+        colorFilter = colorFilter,
         modifier = modifier,
     )
 }

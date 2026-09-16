@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersion = providers.gradleProperty("appVersion").orElse("1.0.0").get()
+val appVersion = providers.gradleProperty("appVersion").orElse("1.5.1").get()
 val appVersionCode = providers.gradleProperty("appVersionCode").orElse("1").get().toInt()
 
 android {

@@ -17,9 +17,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
@@ -27,7 +24,6 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import com.cross.sync.clipboard.presentation.ClipboardSectionHeader
 import com.cross.sync.clipboard.presentation.ClipboardScreen
-import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.notifications.presentation.NotificationScreen
 import com.cross.sync.setting.domain.SettingPreferencesStore
 import com.cross.sync.syncing.domain.entity.PairingState
@@ -48,8 +44,6 @@ import utils.pasteClipboardMac
 import java.awt.Dimension
 import java.awt.Window as AwtWindow
 import org.koin.compose.koinInject
-import org.jetbrains.skia.Image as SkiaImage
-import kotlin.io.encoding.Base64
 
 @Composable
 fun ApplicationScope.QuickClipboardWindow(
@@ -57,8 +51,6 @@ fun ApplicationScope.QuickClipboardWindow(
     openHome: () -> Unit,
     globalHotkeyManager: GlobalHotkeyManager,
     pairingState: PairingState?,
-    liveUpdateNotification: SyncedNotification? = null,
-    onShowLiveUpdateChip: () -> Unit = {},
 ) {
     val settingPreferencesStore = koinInject<SettingPreferencesStore>()
     val density = LocalDensity.current
@@ -114,28 +106,6 @@ fun ApplicationScope.QuickClipboardWindow(
             )
         }
     )
-
-    liveUpdateNotification?.let { notification ->
-        val tooltip = notification.statusBarTooltip()
-        val notificationIcon = remember(notification.media?.notificationIcon) {
-            notification.media?.notificationIcon?.toImageBitmap()
-        }
-        if (notificationIcon == null) {
-            Tray(
-                icon = AppIcons().CrossSync,
-                tooltip = tooltip,
-                primaryAction = onShowLiveUpdateChip,
-                menuContent = null,
-            )
-        } else {
-            Tray(
-                icon = BitmapPainter(notificationIcon),
-                tooltip = tooltip,
-                primaryAction = onShowLiveUpdateChip,
-                menuContent = null,
-            )
-        }
-    }
 
     DisposableEffect(Unit) {
         val showClipboardContentAction = {
@@ -246,7 +216,8 @@ fun ApplicationScope.QuickClipboardWindow(
                         onClose = {
                             showWindow = false
                         },
-                        onOpenFullApp = openHome,
+                        onOpenFullApp = openSetting,
+                        onOpenHome = openHome,
                         onOpenNotifications = {
                             quickAccessContent = QuickAccessContent.NOTIFICATIONS
                         },
@@ -288,23 +259,5 @@ fun ApplicationScope.QuickClipboardWindow(
         }
     }
 }
-
-private fun SyncedNotification.statusBarTooltip(): String {
-    val title = title.trim().ifBlank { "New notification" }
-    val body = body.trim()
-    return buildString {
-        append(appName.trim().ifBlank { packageName })
-        append(": ")
-        append(title)
-        if (body.isNotBlank()) {
-            append(" — ")
-            append(body)
-        }
-    }.replace(Regex("\\s+"), " ").take(256)
-}
-
-private fun String.toImageBitmap(): ImageBitmap? = runCatching {
-    SkiaImage.makeFromEncoded(Base64.decode(this)).toComposeImageBitmap()
-}.getOrNull()
 
 private enum class QuickAccessContent { CLIPBOARD, NOTIFICATIONS }
