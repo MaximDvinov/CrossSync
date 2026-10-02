@@ -19,6 +19,7 @@ import com.cross.sync.syncing.domain.repository.DeviceRepository
 import com.cross.sync.syncing.network.ClipboardClient
 import com.cross.sync.notifications.domain.repository.NotificationActionExecutor
 import com.cross.sync.notifications.domain.repository.NotificationSnapshotPublisher
+import com.cross.sync.notifications.domain.usecase.SynchronizeNotificationSnapshotsUseCase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
@@ -158,10 +160,10 @@ class SyncForegroundService : LifecycleService() {
             }
 
             launch {
-                client.observeConnectedState().collect { state ->
-                    if (state is ClientConnectState.Connected) {
-                        notificationSnapshotPublisher.publishActive()
-                    }
+                SynchronizeNotificationSnapshotsUseCase(notificationSnapshotPublisher)(
+                    connected = client.observeConnectedState().map { it is ClientConnectState.Connected },
+                ) { error ->
+                    Log.w("SyncService", "notification snapshot failed; will retry", error)
                 }
             }
 

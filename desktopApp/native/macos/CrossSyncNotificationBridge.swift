@@ -38,10 +38,15 @@ private final class CrossSyncLiveUpdateStatusItemController: NSObject {
     }
 
     func screenPoint() -> NSPoint? {
+        guard let rect = screenRect() else { return nil }
+        return NSPoint(x: rect.midX, y: rect.midY)
+    }
+
+    func screenRect() -> NSRect? {
         if Thread.isMainThread {
-            return screenPointOnMain()
+            return screenRectOnMain()
         }
-        return DispatchQueue.main.sync { screenPointOnMain() }
+        return DispatchQueue.main.sync { screenRectOnMain() }
     }
 
     @objc private func handleClick() {
@@ -61,7 +66,7 @@ private final class CrossSyncLiveUpdateStatusItemController: NSObject {
         return image
     }
 
-    private func screenPointOnMain() -> NSPoint? {
+    private func screenRectOnMain() -> NSRect? {
         guard
             let button = statusItem?.button,
             let window = button.window
@@ -70,8 +75,7 @@ private final class CrossSyncLiveUpdateStatusItemController: NSObject {
         }
 
         let buttonRect = button.convert(button.bounds, to: nil)
-        let screenRect = window.convertToScreen(buttonRect)
-        return NSPoint(x: screenRect.midX, y: screenRect.midY)
+        return window.convertToScreen(buttonRect)
     }
 
     private func performOnMain(_ action: @escaping () -> Void) {
@@ -80,6 +84,69 @@ private final class CrossSyncLiveUpdateStatusItemController: NSObject {
         } else {
             DispatchQueue.main.async(execute: action)
         }
+    }
+}
+
+private final class CrossSyncLiveUpdatePopupMonitor {
+    private weak var popupWindow: NSWindow?
+    private var onDismiss: CrossSyncLiveUpdateAction?
+    private var localMonitor: Any?
+    private var globalMonitor: Any?
+    private var activationObserver: NSObjectProtocol?
+
+    func observe(window: NSWindow?, onDismiss: CrossSyncLiveUpdateAction?) {
+        stop()
+        guard let window, let onDismiss else { return }
+        popupWindow = window
+        self.onDismiss = onDismiss
+
+        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
+            self?.handleClick()
+            return event
+        }
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
+            self?.handleClick()
+        }
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard
+                let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                app.processIdentifier != ProcessInfo.processInfo.processIdentifier
+            else { return }
+            self?.dismiss()
+        }
+    }
+
+    private func handleClick() {
+        guard let popupWindow else { return }
+        let point = NSEvent.mouseLocation
+        if popupWindow.frame.contains(point) { return }
+        // The status-button action owns toggling; dismissing on mouse-down would reopen on mouse-up.
+        if liveUpdateStatusItemController.screenRect()?.contains(point) == true { return }
+        dismiss()
+    }
+
+    private func dismiss() {
+        let callback = onDismiss
+        stop()
+        callback?()
+    }
+
+    private func stop() {
+        if let localMonitor { NSEvent.removeMonitor(localMonitor) }
+        if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
+        if let activationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
+        }
+        localMonitor = nil
+        globalMonitor = nil
+        activationObserver = nil
+        popupWindow = nil
+        onDismiss = nil
     }
 }
 
@@ -99,6 +166,24 @@ private final class CrossSyncNotificationDelegate: NSObject, UNUserNotificationC
 
 private let notificationDelegate = CrossSyncNotificationDelegate()
 private let liveUpdateStatusItemController = CrossSyncLiveUpdateStatusItemController()
+private let liveUpdatePopupMonitor = CrossSyncLiveUpdatePopupMonitor()
+
+@_cdecl("crosssync_observe_live_update_popup")
+public func crosssync_observe_live_update_popup(
+    _ windowPointer: UnsafeMutableRawPointer?,
+    _ onDismiss: CrossSyncLiveUpdateAction?
+) {
+    let observe = {
+        let window = windowPointer.map { Unmanaged<NSWindow>.fromOpaque($0).takeUnretainedValue() }
+        liveUpdatePopupMonitor.observe(window: window, onDismiss: onDismiss)
+    }
+    // Disposal must finish before Compose releases its NSWindow or the JNA callback.
+    if Thread.isMainThread {
+        observe()
+    } else {
+        DispatchQueue.main.sync(execute: observe)
+    }
+}
 
 @_cdecl("crosssync_set_live_update_status_item")
 public func crosssync_set_live_update_status_item(

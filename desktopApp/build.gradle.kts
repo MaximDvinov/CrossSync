@@ -138,6 +138,7 @@ dependencies {
     implementation(libs.composenativetray)
 
     implementation(libs.dd.plist)
+    testImplementation(kotlin("test"))
 }
 
 compose.desktop {

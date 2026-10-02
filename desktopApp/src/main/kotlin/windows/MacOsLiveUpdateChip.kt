@@ -1,7 +1,11 @@
 package windows
 
-import registerGlobalMousePressListener
-import unregisterGlobalMousePressListener
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -11,24 +15,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
+import com.cross.sync.notifications.domain.entity.NotificationKind
 import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.notifications.presentation.NotificationPopupCard
 import com.cross.sync.theme.AppTheme
-import notifications.MacOsPopupBridge
 import java.awt.Dimension
-import java.awt.EventQueue
-import java.awt.Window as AwtWindow
-import java.awt.event.WindowAdapter
-import java.awt.event.WindowEvent
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
+import notifications.MacOsPopupBridge
 
 /** A small, Android Live Update-like card anchored below the status-bar icon. */
 @Composable
@@ -38,14 +46,34 @@ fun ApplicationScope.MacOsLiveUpdateChip(
     onDismiss: () -> Unit,
 ) {
     val windowState = rememberWindowState(width = 360.dp, height = 220.dp)
-    var nativeWindow by remember { mutableStateOf<AwtWindow?>(null) }
+    var nativeWindow by remember { mutableStateOf<java.awt.Window?>(null) }
+    var displayedNotification by remember { mutableStateOf(notification) }
+    var anchorFraction by remember { mutableFloatStateOf(0.5f) }
+    val visibility = remember { MutableTransitionState(false) }
     val shouldShow = visible && notification != null
     val latestOnDismiss by rememberUpdatedState(onDismiss)
 
+    LaunchedEffect(notification) {
+        if (notification != null) displayedNotification = notification
+    }
+    LaunchedEffect(shouldShow, notification?.deviceId, notification?.notificationKey, notification?.kind) {
+        // Every opening, including a manual reopening, owns a fresh timeout.
+        if (shouldShow && notification?.kind != NotificationKind.Call) {
+            delay(LiveUpdatePopupTimeoutMillis)
+            latestOnDismiss()
+        }
+    }
+    LaunchedEffect(visibility.isIdle, visibility.currentState, shouldShow) {
+        if (!shouldShow && visibility.isIdle && !visibility.currentState) {
+            displayedNotification = null
+        }
+    }
+
     Window(
-        title = "Live Update",
+        title = if (displayedNotification?.kind == NotificationKind.Call) "Call" else "Live Update",
         state = windowState,
-        visible = shouldShow,
+        // Keep the window and its content alive while the exit animation runs.
+        visible = shouldShow || visibility.currentState || !visibility.isIdle,
         alwaysOnTop = true,
         undecorated = true,
         transparent = true,
@@ -56,49 +84,67 @@ fun ApplicationScope.MacOsLiveUpdateChip(
         DisposableEffect(awtWindow) {
             nativeWindow = awtWindow
             awtWindow.minimumSize = Dimension(360, 220)
-            MacOsPopupBridge.prepareDismissible(awtWindow)
-            var receivedFocus = false
-            val focusListener = object : java.awt.event.WindowFocusListener {
-                override fun windowGainedFocus(event: WindowEvent) {
-                    receivedFocus = true
-                }
-
-                override fun windowLostFocus(event: WindowEvent) {
-                    if (receivedFocus) latestOnDismiss()
-                }
-            }
-            val windowListener = object : WindowAdapter() {
-                override fun windowDeactivated(event: WindowEvent) {
-                    if (receivedFocus) latestOnDismiss()
-                }
-            }
-            awtWindow.addWindowFocusListener(focusListener)
-            awtWindow.addWindowListener(windowListener)
+            MacOsPopupBridge.preparePassive(awtWindow)
             onDispose {
-                awtWindow.removeWindowFocusListener(focusListener)
-                awtWindow.removeWindowListener(windowListener)
                 if (nativeWindow === awtWindow) nativeWindow = null
             }
         }
 
-        if (shouldShow) {
-            DisposableEffect(awtWindow) {
-                val mouseListener = registerGlobalMousePressListener { x, y ->
-                    if (!awtWindow.bounds.contains(x, y)) {
-                        EventQueue.invokeLater { latestOnDismiss() }
-                    }
+        LaunchedEffect(awtWindow, shouldShow) {
+            if (!shouldShow) return@LaunchedEffect
+            // AppKit monitoring requires the visible window's native peer, not just its AWT object.
+            withFrameNanos { }
+            var observing = true
+            try {
+                MacOsPopupBridge.observeLiveUpdateDismissal(awtWindow) {
+                    if (observing) latestOnDismiss()
                 }
-                onDispose { unregisterGlobalMousePressListener(mouseListener) }
+                awaitCancellation()
+            } finally {
+                observing = false
+                MacOsPopupBridge.stopObservingLiveUpdateDismissal()
             }
         }
 
+        val transition = rememberTransition(visibility, label = "Live Update popup visibility")
+        val scale = transition.animateFloat(
+            transitionSpec = {
+                if (targetState) spring(dampingRatio = 0.9f, stiffness = 500f)
+                else tween(180, easing = LiveUpdateExitEasing)
+            },
+            label = "Live Update popup scale",
+        ) { shown -> if (shown) 1f else 0.24f }
+        val lift = transition.animateFloat(
+            transitionSpec = {
+                tween(
+                    if (targetState) 320 else 180,
+                    easing = if (targetState) LiveUpdateEnterEasing else LiveUpdateExitEasing,
+                )
+            },
+            label = "Live Update popup lift",
+        ) { shown -> if (shown) 0f else 1f }
+        val opacity = transition.animateFloat(
+            transitionSpec = { tween(if (targetState) 140 else 120) },
+            label = "Live Update popup opacity",
+        ) { shown -> if (shown) 1f else 0f }
+
         AppTheme {
-            notification?.let { currentNotification ->
+            displayedNotification?.let { currentNotification ->
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(10.dp),
+                        .padding(LiveUpdatePopupPadding)
+                        .graphicsLayer {
+                            val inset = LiveUpdatePopupPadding.toPx()
+                            val pivotX = ((anchorFraction * (size.width + inset * 2) - inset) / size.width)
+                                .coerceIn(0f, 1f)
+                            transformOrigin = TransformOrigin(pivotX, 0f)
+                            scaleX = scale.value
+                            scaleY = scale.value
+                            translationY = -inset * lift.value
+                            alpha = opacity.value
+                        }
+                        .verticalScroll(rememberScrollState()),
                 ) {
                     NotificationPopupCard(
                         notification = currentNotification,
@@ -109,7 +155,7 @@ fun ApplicationScope.MacOsLiveUpdateChip(
                         onInteraction = {},
                         compact = true,
                         showFullText = false,
-                        initiallyExpanded = false,
+                        initiallyExpanded = currentNotification.kind == NotificationKind.Call,
                         animateExpansion = false,
                         showBackground = true,
                     )
@@ -118,10 +164,22 @@ fun ApplicationScope.MacOsLiveUpdateChip(
         }
     }
 
-    LaunchedEffect(shouldShow, notification?.deviceId, notification?.notificationKey, nativeWindow) {
+    LaunchedEffect(shouldShow, nativeWindow) {
         nativeWindow?.let { awtWindow ->
-            MacOsPopupBridge.prepareDismissible(awtWindow)
-            if (shouldShow) MacOsPopupBridge.positionBelowStatusItem(awtWindow)
+            if (shouldShow) {
+                MacOsPopupBridge.preparePassive(awtWindow)
+                if (!visibility.currentState && visibility.isIdle) {
+                    anchorFraction = MacOsPopupBridge.positionBelowStatusItem(awtWindow)
+                    windowState.position = WindowPosition(awtWindow.x.dp, awtWindow.y.dp)
+                }
+                displayedNotification = notification
+            }
+            visibility.targetState = shouldShow
         }
     }
 }
+
+private const val LiveUpdatePopupTimeoutMillis = 4_000L
+private val LiveUpdatePopupPadding = 10.dp
+private val LiveUpdateEnterEasing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+private val LiveUpdateExitEasing = CubicBezierEasing(0.4f, 0f, 1f, 1f)

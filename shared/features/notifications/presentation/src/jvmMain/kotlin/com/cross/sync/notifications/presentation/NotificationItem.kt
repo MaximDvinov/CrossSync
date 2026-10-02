@@ -63,6 +63,7 @@ import com.cross.sync.components.button.ButtonsDefaults
 import com.cross.sync.components.button.RoundedIconButton
 import com.cross.sync.components.button.RoundedTextButton
 import com.cross.sync.notifications.domain.entity.SyncedNotification
+import com.cross.sync.notifications.domain.entity.NotificationKind
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.Close
 import crosssync.shared.features.notifications.presentation.generated.resources.Res
@@ -70,7 +71,6 @@ import crosssync.shared.features.notifications.presentation.generated.resources.
 import crosssync.shared.features.notifications.presentation.generated.resources.ic_notification_send
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.skia.Image as SkiaImage
 import org.koin.compose.koinInject
 import java.time.Instant
 import java.time.ZoneId
@@ -122,7 +122,7 @@ fun NotificationCard(
         notification.deviceId,
         notification.notificationKey,
         initiallyExpanded,
-    ) { mutableStateOf(initiallyExpanded) }
+    ) { mutableStateOf(initiallyExpanded || notification.kind == NotificationKind.Call) }
     val replyAction = notification.actions.firstOrNull { it.index == replyActionIndex }
 
     LaunchedEffect(actionsVisible) {
@@ -465,27 +465,36 @@ fun NotificationPopupCard(
 ) {
     val state by viewModel.state.collectAsState()
     val actionKey = "${notification.deviceId}:${notification.notificationKey}"
-    NotificationCard(
-        notification = notification,
-        actionPending = actionKey in state.pendingActions,
-        onDismiss = {
-            viewModel.dismiss(notification)
-            onDismiss()
-        },
-        onAction = { actionIndex ->
-            viewModel.invoke(notification, actionIndex)
-        },
-        onReply = { actionIndex, text ->
-            viewModel.reply(notification, actionIndex, text)
-        },
-        onReplyRequested = onReplyRequested,
-        onInteraction = onInteraction,
-        compact = compact,
-        initiallyExpanded = initiallyExpanded,
-        showFullText = showFullText,
-        animateExpansion = animateExpansion,
-        showBackground = showBackground,
-    )
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        NotificationCard(
+            notification = notification,
+            actionPending = actionKey in state.pendingActions,
+            onDismiss = {
+                viewModel.dismiss(notification)
+                onDismiss()
+            },
+            onAction = { actionIndex ->
+                viewModel.invoke(notification, actionIndex)
+            },
+            onReply = { actionIndex, text ->
+                viewModel.reply(notification, actionIndex, text)
+            },
+            onReplyRequested = onReplyRequested,
+            onInteraction = onInteraction,
+            compact = compact,
+            initiallyExpanded = initiallyExpanded,
+            showFullText = showFullText,
+            animateExpansion = animateExpansion,
+            showBackground = showBackground,
+        )
+        state.actionError?.let { message ->
+            BasicText(
+                text = message,
+                style = AppTheme.typography.regular12.copy(color = AppTheme.colors.onSurfaceVariant),
+                modifier = Modifier.padding(horizontal = 10.dp),
+            )
+        }
+    }
 }
 
 @Composable
@@ -566,7 +575,7 @@ private fun NotificationBitmap(
 }
 
 private fun String.toNotificationImageBitmap(): ImageBitmap? = runCatching {
-    SkiaImage.makeFromEncoded(Base64.decode(this)).toComposeImageBitmap()
+    org.jetbrains.skia.Image.makeFromEncoded(Base64.decode(this)).toComposeImageBitmap()
 }.getOrNull()
 
 @Composable

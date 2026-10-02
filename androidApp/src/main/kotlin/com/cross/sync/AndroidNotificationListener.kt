@@ -10,6 +10,7 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.os.Process
 import android.util.Base64
+import android.util.Log
 import android.content.Intent
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -20,12 +21,14 @@ import com.cross.sync.notifications.domain.entity.NotificationActionRequest
 import com.cross.sync.notifications.domain.entity.NotificationKind
 import com.cross.sync.notifications.domain.entity.NotificationMedia
 import com.cross.sync.notifications.domain.entity.NotificationRemoval
+import com.cross.sync.notifications.domain.entity.NotificationSnapshot
 import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.notifications.domain.repository.NotificationActionExecutor
 import com.cross.sync.notifications.domain.repository.NotificationPublisher
 import com.cross.sync.notifications.domain.repository.NotificationSnapshotPublisher
 import com.cross.sync.setting.domain.SettingPreferencesStore
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -39,6 +42,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 class AndroidNotificationListener : NotificationListenerService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var listenerConnected = false
 
     override fun onCreate() {
         super.onCreate()
@@ -48,16 +53,17 @@ class AndroidNotificationListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        listenerConnected = true
         serviceScope.launch {
-            eventMutex.withLock {
-                if (!isSyncEnabled()) {
-                    clearTrackedNotifications()
-                    return@withLock
-                }
-                refreshTrackedNotifications()
-                reconcileAll(force = true)
+            publishActive(force = true).onFailure { error ->
+                Log.w("NotificationSync", "Initial snapshot failed; sync service will retry", error)
             }
         }
+    }
+
+    override fun onListenerDisconnected() {
+        listenerConnected = false
+        super.onListenerDisconnected()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -79,7 +85,8 @@ class AndroidNotificationListener : NotificationListenerService() {
         serviceScope.launch {
             eventMutex.withLock {
                 active.remove(sbn.key)
-                removePublished(sbn.key)
+                // Mac may still have this key after the Android process/cache restarted.
+                removeFromDesktop(sbn.key)
                 if (!isSyncEnabled()) {
                     clearTrackedNotifications()
                     return@withLock
@@ -92,6 +99,7 @@ class AndroidNotificationListener : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        listenerConnected = false
         instance = null
         serviceScope.cancel()
         super.onDestroy()
@@ -112,11 +120,11 @@ class AndroidNotificationListener : NotificationListenerService() {
             sbn.packageName !in GlobalContext.get().get<SettingPreferencesStore>().getExcludedApplicationIds()
     }
 
-    private suspend fun reconcileAll(force: Boolean) {
+    private suspend fun reconcileAll(force: Boolean, isSnapshot: Boolean = false) {
         active.values
             .groupBy { it.notificationGroupKey() }
             .values
-            .forEach { notifications -> reconcile(notifications, force) }
+            .forEach { notifications -> reconcile(notifications, force, isSnapshot) }
     }
 
     private suspend fun trackActiveGroup(groupKey: String) {
@@ -128,7 +136,7 @@ class AndroidNotificationListener : NotificationListenerService() {
     }
 
     private suspend fun refreshTrackedNotifications() {
-        val currentNotifications = activeNotifications.orEmpty()
+        val currentNotifications = checkNotNull(activeNotifications) { "Notification listener is unavailable" }
         val currentKeys = currentNotifications.mapTo(mutableSetOf()) { it.key }
         for (notificationKey in active.keys) {
             if (notificationKey !in currentKeys) {
@@ -151,13 +159,14 @@ class AndroidNotificationListener : NotificationListenerService() {
     private suspend fun reconcile(
         notifications: List<StatusBarNotification>,
         force: Boolean,
+        isSnapshot: Boolean = false,
     ) {
         val hasChildren = notifications.any { !it.isGroupSummary() }
         notifications.forEach { notification ->
             if (notification.isGroupSummary() && hasChildren) {
                 removePublished(notification.key)
             } else {
-                publishIfChanged(notification, force)
+                publishIfChanged(notification, force, isSnapshot)
             }
         }
     }
@@ -165,6 +174,7 @@ class AndroidNotificationListener : NotificationListenerService() {
     private suspend fun publishIfChanged(
         sbn: StatusBarNotification,
         force: Boolean,
+        isSnapshot: Boolean,
     ) {
         val notification = sbn.toSyncedNotification(
             context = applicationContext,
@@ -174,13 +184,18 @@ class AndroidNotificationListener : NotificationListenerService() {
         if (!force && previous?.copy(updatedAt = 0) == notification.copy(updatedAt = 0)) return
 
         // Keep the canonical content for deduplication; a snapshot must not trigger copying.
-        val payload = if (force) notification.copy(authorizationCode = "") else notification
-        GlobalContext.get().get<NotificationPublisher>().publish(payload)
+        val payload = if (isSnapshot) notification.copy(authorizationCode = "") else notification
+        val result = GlobalContext.get().get<NotificationPublisher>().publish(payload)
             .onSuccess { published[sbn.key] = notification }
+        if (isSnapshot) result.getOrThrow()
     }
 
     private suspend fun removePublished(notificationKey: String) {
         if (published[notificationKey] == null) return
+        removeFromDesktop(notificationKey)
+    }
+
+    private suspend fun removeFromDesktop(notificationKey: String) {
         GlobalContext.get().get<NotificationPublisher>()
             .remove(NotificationRemoval(notificationKey, System.currentTimeMillis()))
             .onSuccess { published.remove(notificationKey) }
@@ -195,14 +210,29 @@ class AndroidNotificationListener : NotificationListenerService() {
 
     private fun isSyncEnabled(): Boolean = notificationSettings().notificationSyncEnabled
 
-    private suspend fun publishActiveNotifications() {
+    private suspend fun publishActiveNotifications(force: Boolean = true) {
         eventMutex.withLock {
+            // An unavailable listener is not an authoritative empty notification list.
+            check(listenerConnected) { "Notification listener is not connected" }
             if (!isSyncEnabled()) {
                 clearTrackedNotifications()
             } else {
                 refreshTrackedNotifications()
-                reconcileAll(force = true)
+                reconcileAll(force = force, isSnapshot = true)
             }
+            // This complete key set also removes stale desktop entries after the
+            // listener/process restarted and lost its in-memory removal history.
+            val activeKeys = active.values
+                .groupBy { it.notificationGroupKey() }
+                .values
+                .flatMap { notifications ->
+                    val hasChildren = notifications.any { !it.isGroupSummary() }
+                    notifications.filterNot { it.isGroupSummary() && hasChildren }
+                }
+                .map { it.key }
+            GlobalContext.get().get<NotificationPublisher>().publishSnapshot(
+                NotificationSnapshot(activeKeys, System.currentTimeMillis())
+            ).getOrThrow()
         }
     }
 
@@ -264,8 +294,16 @@ class AndroidNotificationListener : NotificationListenerService() {
             }
         }
 
-        internal suspend fun publishActive() {
-            instance?.publishActiveNotifications()
+        internal suspend fun publishActive(force: Boolean): Result<Unit> {
+            return try {
+                val listener = checkNotNull(instance) { "Notification listener is unavailable" }
+                listener.publishActiveNotifications(force)
+                Result.success(Unit)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Result.failure(error)
+            }
         }
 
         private fun StatusBarNotification.actionAt(index: Int): Notification.Action {
@@ -282,8 +320,8 @@ class AndroidNotificationActionExecutor : NotificationActionExecutor {
 }
 
 class AndroidNotificationSnapshotPublisher : NotificationSnapshotPublisher {
-    override suspend fun publishActive() {
-        AndroidNotificationListener.publishActive()
+    override suspend fun publishActive(force: Boolean): Result<Unit> {
+        return AndroidNotificationListener.publishActive(force)
     }
 }
 
@@ -528,11 +566,11 @@ private fun Bundle.messageBundles(key: String): List<Bundle> {
 private fun Notification.kind(): NotificationKind {
     val template = extras.getString(Notification.EXTRA_TEMPLATE).orEmpty()
     return when {
+        category == Notification.CATEGORY_CALL || template.contains("CallStyle") -> NotificationKind.Call
         extras.getParcelableArray(Notification.EXTRA_MESSAGES)?.isNotEmpty() == true ||
             template.contains("MessagingStyle") -> NotificationKind.Message
         extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.isNotEmpty() == true ||
             template.contains("InboxStyle") -> NotificationKind.Inbox
-        category == Notification.CATEGORY_CALL || template.contains("CallStyle") -> NotificationKind.Call
         category == Notification.CATEGORY_TRANSPORT || template.contains("MediaStyle") -> NotificationKind.Media
         extras.containsKey(Notification.EXTRA_PROGRESS) || template.contains("ProgressStyle") -> NotificationKind.Progress
         template.contains("BigPictureStyle") -> NotificationKind.Image

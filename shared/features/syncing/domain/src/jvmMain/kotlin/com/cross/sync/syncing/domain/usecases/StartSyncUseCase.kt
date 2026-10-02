@@ -85,6 +85,14 @@ class StartSyncUseCase(
                             removedAt = event.removal.removedAt,
                         )
                     }
+
+                    is ServerEvent.ReceivedNotificationSnapshot -> {
+                        notificationRepository.reconcileActive(
+                            deviceId = event.deviceId,
+                            activeKeys = event.snapshot.activeKeys,
+                            capturedAt = event.snapshot.capturedAt,
+                        )
+                    }
                 }
             }
         }

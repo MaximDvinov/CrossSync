@@ -5,6 +5,7 @@ import com.cross.sync.clipboard.domain.entity.Category
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.notifications.domain.entity.NotificationActionRequest
 import com.cross.sync.notifications.domain.entity.NotificationRemoval
+import com.cross.sync.notifications.domain.entity.NotificationSnapshot
 import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.entity.DeviceData
@@ -314,6 +315,10 @@ class ClipboardClient(
 
     suspend fun removeNotification(removal: NotificationRemoval): Result<Unit> = runCatchingForApi {
         sendPayloadToServer(SyncPayloadDto.NotificationRemovedPayload(removal))
+    }
+
+    suspend fun sendNotificationSnapshot(snapshot: NotificationSnapshot): Result<Unit> = runCatchingForApi {
+        sendPayloadToServer(SyncPayloadDto.NotificationSnapshotPayload(snapshot))
     }
 
     suspend fun observeCopiedData(): Flow<IncomingCopiedData> {

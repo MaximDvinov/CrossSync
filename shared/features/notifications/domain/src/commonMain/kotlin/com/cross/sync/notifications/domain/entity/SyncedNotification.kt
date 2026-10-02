@@ -26,6 +26,21 @@ data class SyncedNotification(
     val authorizationCode: String? = null,
 )
 
+/** Active calls use the persistent Live Update surface even before Android marks them ongoing. */
+val SyncedNotification.isLiveUpdate: Boolean
+    get() = isOngoing || kind == NotificationKind.Call
+
+fun List<SyncedNotification>.currentLiveUpdate(): SyncedNotification? =
+    asSequence()
+        .filter { it.isActive && it.isLiveUpdate }
+        .maxWithOrNull(compareBy<SyncedNotification> { it.kind == NotificationKind.Call }.thenBy { it.updatedAt })
+
+@Serializable
+data class NotificationSnapshot(
+    val activeKeys: List<String>,
+    val capturedAt: Long,
+)
+
 @Serializable
 data class NotificationMedia(
     /** The source application's launcher icon. */

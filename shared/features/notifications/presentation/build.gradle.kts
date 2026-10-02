@@ -15,6 +15,11 @@ kotlin {
     jvm()
 
     sourceSets {
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(projects.shared.features.clipboard.domain)
+        }
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.components.resources)

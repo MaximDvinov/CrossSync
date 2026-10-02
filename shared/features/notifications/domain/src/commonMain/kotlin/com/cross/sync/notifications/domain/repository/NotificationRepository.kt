@@ -7,6 +7,8 @@ interface NotificationRepository {
     suspend fun upsert(notification: SyncedNotification)
     suspend fun markRemoved(deviceId: String, notificationKey: String, removedAt: Long)
     suspend fun markRead(deviceId: String, notificationKey: String)
+    suspend fun dismiss(deviceId: String, notificationKey: String)
+    suspend fun reconcileActive(deviceId: String, activeKeys: List<String>, capturedAt: Long)
     suspend fun clear()
     suspend fun clearHistoryBefore(olderThanEpochMillis: Long)
     fun observeNotifications(): Flow<List<SyncedNotification>>

@@ -3,6 +3,7 @@ package com.cross.sync.notifications.di
 import com.cross.sync.notifications.data.NotificationRepositoryImpl
 import com.cross.sync.notifications.domain.repository.NotificationRepository
 import com.cross.sync.notifications.domain.usecase.MarkNotificationReadUseCase
+import com.cross.sync.notifications.domain.usecase.DismissNotificationUseCase
 import com.cross.sync.notifications.domain.usecase.ClearNotificationHistoryUseCase
 import com.cross.sync.notifications.domain.usecase.ObserveNotificationsUseCase
 import org.koin.core.module.Module
@@ -14,5 +15,6 @@ val notificationModule: Module = module {
     singleOf(::NotificationRepositoryImpl) bind NotificationRepository::class
     singleOf(::ObserveNotificationsUseCase)
     singleOf(::MarkNotificationReadUseCase)
+    singleOf(::DismissNotificationUseCase)
     singleOf(::ClearNotificationHistoryUseCase)
 }

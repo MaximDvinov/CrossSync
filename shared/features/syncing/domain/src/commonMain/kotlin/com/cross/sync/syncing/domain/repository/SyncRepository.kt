@@ -2,6 +2,7 @@ package com.cross.sync.syncing.domain.repository
 
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.notifications.domain.entity.NotificationRemoval
+import com.cross.sync.notifications.domain.entity.NotificationSnapshot
 import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,7 @@ interface SyncRepository {
     suspend fun sendCopiedData(data: CopiedData): Result<Unit>
     suspend fun sendNotification(notification: SyncedNotification): Result<Unit>
     suspend fun removeNotification(removal: NotificationRemoval): Result<Unit>
+    suspend fun sendNotificationSnapshot(snapshot: NotificationSnapshot): Result<Unit>
 
     fun disconnect(): Result<Unit>
 }

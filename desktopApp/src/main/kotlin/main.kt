@@ -16,6 +16,7 @@ import com.cross.sync.notifications.di.desktopNotificationModule
 import com.cross.sync.notifications.domain.usecase.ObserveNotificationsUseCase
 import com.cross.sync.notifications.domain.usecase.ClearNotificationHistoryUseCase
 import com.cross.sync.notifications.domain.entity.SyncedNotification
+import com.cross.sync.notifications.domain.entity.currentLiveUpdate
 import com.cross.sync.setting.domain.SettingPreferencesStore
 import com.cross.sync.syncing.di.syncingModule
 import com.cross.sync.syncing.domain.usecases.ObservePairingUseCase
@@ -119,17 +120,14 @@ fun main() = application {
             notificationBannerCoordinator.onNotificationsChanged(notifications)
         }
 
-        val liveUpdateNotification = notifications
-            .asSequence()
-            .filter { it.isActive && it.isOngoing }
-            .maxByOrNull { it.updatedAt }
+        val liveUpdateNotification = notifications.currentLiveUpdate()
 
-        LaunchedEffect(liveUpdateNotification?.deviceId, liveUpdateNotification?.notificationKey) {
-            if (liveUpdateNotification != null) {
-                showLiveUpdateChip = true
-                delay(LIVE_UPDATE_POPUP_DURATION_MILLIS)
-                showLiveUpdateChip = false
-            }
+        LaunchedEffect(
+            liveUpdateNotification?.deviceId,
+            liveUpdateNotification?.notificationKey,
+            liveUpdateNotification?.kind,
+        ) {
+            showLiveUpdateChip = liveUpdateNotification != null
         }
 
         LaunchedEffect(Unit) {
@@ -182,7 +180,7 @@ fun main() = application {
 
         MacOsLiveUpdateStatusItem(
             notification = liveUpdateNotification,
-            onClick = { showLiveUpdateChip = true },
+            onClick = { showLiveUpdateChip = !showLiveUpdateChip },
         )
 
         MacOsLiveUpdateChip(
@@ -216,4 +214,3 @@ fun main() = application {
 
 private const val MILLIS_IN_DAY = 24L * 60L * 60L * 1000L
 private const val AUTO_CLEAR_CHECK_INTERVAL_MILLIS = 60L * 60L * 1000L
-private const val LIVE_UPDATE_POPUP_DURATION_MILLIS = 4_000L

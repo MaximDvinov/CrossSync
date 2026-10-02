@@ -54,6 +54,7 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.close
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
@@ -258,6 +259,12 @@ class LocalServer(
                         )
                     }
 
+                    is SyncPayloadDto.NotificationSnapshotPayload -> {
+                        serverEvent.emit(
+                            ServerEvent.ReceivedNotificationSnapshot(device.id, payload.snapshot)
+                        )
+                    }
+
                     null -> runCatching {
                         val copiedData = json.decodeFromString<CopiedDataDto>(decryptedData).toDomain()
                         serverEvent.emit(ServerEvent.ReceivedCopiedData(copiedData))
@@ -321,7 +328,10 @@ class LocalServer(
                     println("onError ${closeReason.await()}")
                     e.printStackTrace()
                 } finally {
-                    connections.remove(device.id)
+                    synchronized(connections) {
+                        // A reconnect may already have replaced this session.
+                        if (connections[device.id] === this) connections.remove(device.id)
+                    }
                     emitPairingByActiveConnections()
                 }
             }
@@ -375,16 +385,21 @@ class LocalServer(
         val device = deviceRepository.getDeviceById(action.deviceId)
             ?: return Result.failure(IllegalArgumentException("Unknown device"))
 
-        return runCatching {
+        return try {
             sendPayload(
                 session = session,
                 secretKey = device.secretKey,
                 payload = SyncPayloadDto.NotificationActionPayload(action),
             )
-        }.onFailure {
+            Result.success(Unit)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
             synchronized(connections) {
                 if (connections[action.deviceId] === session) connections.remove(action.deviceId)
             }
+            emitPairingByActiveConnections()
+            Result.failure(error)
         }
     }
 

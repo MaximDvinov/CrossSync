@@ -10,7 +10,7 @@ class NotificationRepositoryImpl(
     private val dao: NotificationDao,
 ) : NotificationRepository {
     override suspend fun upsert(notification: SyncedNotification) {
-        dao.upsert(notification.toEntity())
+        dao.upsertFromDevice(notification.toEntity())
     }
 
     override suspend fun markRemoved(deviceId: String, notificationKey: String, removedAt: Long) {
@@ -19,6 +19,14 @@ class NotificationRepositoryImpl(
 
     override suspend fun markRead(deviceId: String, notificationKey: String) {
         dao.markRead(deviceId, notificationKey)
+    }
+
+    override suspend fun dismiss(deviceId: String, notificationKey: String) {
+        dao.dismiss(deviceId, notificationKey)
+    }
+
+    override suspend fun reconcileActive(deviceId: String, activeKeys: List<String>, capturedAt: Long) {
+        dao.reconcileActive(deviceId, activeKeys, capturedAt)
     }
 
     override suspend fun clear() {

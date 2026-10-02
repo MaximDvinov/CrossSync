@@ -6,6 +6,7 @@ import com.cross.sync.notifications.domain.entity.NotificationAction
 import com.cross.sync.notifications.domain.entity.NotificationActionRequest
 import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.notifications.domain.usecase.MarkNotificationReadUseCase
+import com.cross.sync.notifications.domain.usecase.DismissNotificationUseCase
 import com.cross.sync.notifications.domain.usecase.ClearNotificationHistoryUseCase
 import com.cross.sync.notifications.domain.usecase.ObserveNotificationsUseCase
 import com.cross.sync.syncing.domain.usecases.SendNotificationActionUseCase
@@ -26,6 +27,7 @@ class NotificationViewModel(
     private val markRead: MarkNotificationReadUseCase,
     private val clearNotificationHistory: ClearNotificationHistoryUseCase,
     private val sendAction: SendNotificationActionUseCase,
+    private val dismissLocally: DismissNotificationUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(NotificationState())
     val state = _state.asStateFlow()
@@ -64,11 +66,16 @@ class NotificationViewModel(
     }
 
     private fun dispatch(notification: SyncedNotification, action: NotificationAction) {
+        val key = notificationKey(notification)
+        if (key in _state.value.pendingActions) return
+        _state.update { it.copy(pendingActions = it.pendingActions + key, actionError = null) }
         viewModelScope.launch {
-            val key = notificationKey(notification)
-            _state.update { it.copy(pendingActions = it.pendingActions + key, actionError = null) }
             try {
-                markRead(notification.deviceId, notification.notificationKey)
+                if (action == NotificationAction.Dismiss) {
+                    dismissLocally(notification.deviceId, notification.notificationKey)
+                } else {
+                    markRead(notification.deviceId, notification.notificationKey)
+                }
                 val result = sendAction(
                     NotificationActionRequest(
                         deviceId = notification.deviceId,
@@ -76,7 +83,11 @@ class NotificationViewModel(
                         action = action,
                     )
                 )
-                _state.update { it.copy(actionError = result.exceptionOrNull()?.message) }
+                // Local dismissal is complete even when the phone cannot be reached.
+                // Call/reply failures must remain visible so the user can retry.
+                if (action != NotificationAction.Dismiss) {
+                    _state.update { it.copy(actionError = result.exceptionOrNull()?.message) }
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {

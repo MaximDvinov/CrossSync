@@ -1,6 +1,7 @@
 package notifications
 
 import com.cross.sync.notifications.domain.entity.SyncedNotification
+import com.cross.sync.notifications.domain.entity.isLiveUpdate
 import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.NativeLibrary
@@ -21,6 +22,7 @@ import kotlin.math.min
 internal object MacOsPopupBridge {
     private const val nonActivatingPanelMask = 1L shl 7
     private const val floatingWindowLevel = 3L
+    private const val canJoinAllSpaces = 1L
     private const val moveToActiveSpace = 1L shl 1
 
     val isSupported: Boolean = System.getProperty("os.name").contains("mac", ignoreCase = true)
@@ -31,41 +33,30 @@ internal object MacOsPopupBridge {
             val styleMask = ObjectiveC.long(panel, "styleMask")
             ObjectiveC.void(panel, "setStyleMask:", styleMask or nonActivatingPanelMask)
             ObjectiveC.void(panel, "setLevel:", floatingWindowLevel)
-            ObjectiveC.void(panel, "setHidesOnDeactivate:", true)
+            ObjectiveC.void(panel, "setHidesOnDeactivate:", false)
             val behavior = ObjectiveC.long(panel, "collectionBehavior")
-            ObjectiveC.void(panel, "setCollectionBehavior:", behavior or moveToActiveSpace)
+            // Joining Spaces preserves screen coordinates when another display gains focus.
+            ObjectiveC.void(
+                panel,
+                "setCollectionBehavior:",
+                (behavior and moveToActiveSpace.inv()) or canJoinAllSpaces,
+            )
         }
     }
 
-    /** Configure a popup that must receive focus changes so an outside click can dismiss it. */
-    fun prepareDismissible(window: Window) = onAwtThread {
-        nativeWindow(window)?.let { panel ->
-            val styleMask = ObjectiveC.long(panel, "styleMask")
-            ObjectiveC.void(panel, "setStyleMask:", styleMask and nonActivatingPanelMask.inv())
-            ObjectiveC.void(panel, "setHidesOnDeactivate:", true)
-            ObjectiveC.void(panel, "setLevel:", floatingWindowLevel)
-            val behavior = ObjectiveC.long(panel, "collectionBehavior")
-            ObjectiveC.void(panel, "setCollectionBehavior:", behavior or moveToActiveSpace)
+    /** Positions the popup and returns the icon's horizontal fraction inside the clamped window. */
+    fun positionBelowStatusItem(window: Window, gap: Int = 8): Float {
+        var anchorFraction = 0.5f
+        onAwtThread {
+            val anchor = statusItemScreenPoint()
+            val screen = anchor?.let(::screenContaining)
+                ?: GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice.defaultConfiguration.bounds
+            val width = window.width.coerceAtLeast(1)
+            window.location = popupPositionBelowAnchor(anchor, screen, width, gap)
+            anchorFraction = anchor?.let { (it.x - window.x).toFloat() / width }
+                ?.coerceIn(0f, 1f) ?: 0.5f
         }
-    }
-
-    /** Moves the popup below the exact NSStatusBarButton and clamps it to that display. */
-    fun positionBelowStatusItem(window: Window, gap: Int = 8) = onAwtThread {
-        val anchor = statusItemScreenPoint()
-        val screen = anchor?.let(::screenContaining)
-            ?: GraphicsEnvironment.getLocalGraphicsEnvironment().defaultScreenDevice.defaultConfiguration.bounds
-        val width = window.width.coerceAtLeast(1)
-        val minX = screen.x + gap
-        val maxX = max(minX, screen.x + screen.width - width - gap)
-        // The existing MacTray bridge returns AppKit's status-item point. Its y-axis is
-        // not AWT's y-axis, so derive the menu-bar edge from the resolved AWT display.
-        val menuBarHeight = 28
-        val minY = screen.y + menuBarHeight + gap
-
-        window.location = Point(
-            anchor?.let { min(max(it.x - width / 2, minX), maxX) } ?: maxX,
-            minY,
-        )
+        return anchorFraction
     }
 
     /** Reply is an explicit interaction: turn the passive panel into a key window. */
@@ -79,8 +70,18 @@ internal object MacOsPopupBridge {
         window.requestFocus()
     }
 
+    fun observeLiveUpdateDismissal(window: Window, onDismiss: () -> Unit) = onAwtThread {
+        nativeWindow(window)?.let { panel ->
+            MacOsLiveUpdateStatusItemBridge.observePopup(panel, onDismiss)
+        }
+    }
+
+    fun stopObservingLiveUpdateDismissal() = onAwtThread {
+        MacOsLiveUpdateStatusItemBridge.observePopup(null, null)
+    }
+
     private fun statusItemScreenPoint(): Point? {
-        return MacOsLiveUpdateStatusItemBridge.statusItemScreenPoint() ?: runCatching {
+        val appKitPoint = MacOsLiveUpdateStatusItemBridge.statusItemScreenPoint() ?: runCatching {
             // Fall back to the ComposeNativeTray item when the Live Update item is not ready.
             val coordinates = IntArray(2)
             val bridgeClass = Class.forName(
@@ -93,6 +94,9 @@ internal object MacOsPopupBridge {
             val found = (method.invoke(null, coordinates) as Int) != 0
             if (found) Point(coordinates[0], coordinates[1]) else null
         }.getOrNull()
+        val primaryScreenHeight = GraphicsEnvironment.getLocalGraphicsEnvironment()
+            .defaultScreenDevice.defaultConfiguration.bounds.height
+        return appKitPoint?.let { appKitToAwtScreenPoint(it, primaryScreenHeight) }
     }
 
     private fun screenContaining(point: Point): Rectangle =
@@ -111,6 +115,23 @@ internal object MacOsPopupBridge {
         if (!isSupported) return
         if (EventQueue.isDispatchThread()) action() else EventQueue.invokeAndWait(action)
     }
+}
+
+internal fun appKitToAwtScreenPoint(point: Point, primaryScreenHeight: Int): Point =
+    Point(point.x, primaryScreenHeight - point.y)
+
+internal fun popupPositionBelowAnchor(
+    anchor: Point?,
+    screen: Rectangle,
+    width: Int,
+    gap: Int,
+): Point {
+    val minX = screen.x + gap
+    val maxX = max(minX, screen.x + screen.width - width - gap)
+    return Point(
+        anchor?.let { min(max(it.x - width / 2, minX), maxX) } ?: maxX,
+        screen.y + 28 + gap,
+    )
 }
 
 /**
@@ -178,8 +199,8 @@ internal class NotificationBannerCoordinator(
         val activeNotifications = notifications.filter(SyncedNotification::isActive)
         // Ongoing notifications are rendered by the dedicated Live Update tray item.
         // They must not also produce a regular macOS notification/popup on every update.
-        val deliveredNotifications = activeNotifications.filterNot(SyncedNotification::isOngoing)
-        val activeIds = activeNotifications.mapTo(mutableSetOf()) { it.id }
+        val deliveredNotifications = activeNotifications.filterNot(SyncedNotification::isLiveUpdate)
+        val activeIds = deliveredNotifications.mapTo(mutableSetOf()) { it.id }
 
         if (receivedInitialSnapshot) {
             deliveredVersions.keys

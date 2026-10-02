@@ -2,6 +2,7 @@ package com.cross.sync.syncing.data.repository
 
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.notifications.domain.entity.NotificationRemoval
+import com.cross.sync.notifications.domain.entity.NotificationSnapshot
 import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.repository.SyncRepository
@@ -37,6 +38,10 @@ open class SyncRepositoryImpl(
 
     override suspend fun removeNotification(removal: NotificationRemoval): Result<Unit> {
         return client.removeNotification(removal)
+    }
+
+    override suspend fun sendNotificationSnapshot(snapshot: NotificationSnapshot): Result<Unit> {
+        return client.sendNotificationSnapshot(snapshot)
     }
 
     override fun disconnect(): Result<Unit> = runCatching {
