@@ -1,6 +1,9 @@
 package com.cross.sync.syncing.data.repository
 
 import com.cross.sync.clipboard.domain.entity.CopiedData
+import com.cross.sync.notifications.domain.entity.NotificationRemoval
+import com.cross.sync.notifications.domain.entity.NotificationSnapshot
+import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.repository.SyncRepository
 import com.cross.sync.syncing.network.ClipboardClient
@@ -27,6 +30,18 @@ open class SyncRepositoryImpl(
 
     override suspend fun sendCopiedData(data: CopiedData): Result<Unit> {
         return client.sendCopiedData(data)
+    }
+
+    override suspend fun sendNotification(notification: SyncedNotification): Result<Unit> {
+        return client.sendNotification(notification)
+    }
+
+    override suspend fun removeNotification(removal: NotificationRemoval): Result<Unit> {
+        return client.removeNotification(removal)
+    }
+
+    override suspend fun sendNotificationSnapshot(snapshot: NotificationSnapshot): Result<Unit> {
+        return client.sendNotificationSnapshot(snapshot)
     }
 
     override fun disconnect(): Result<Unit> = runCatching {

@@ -3,20 +3,21 @@ package com.cross.sync.syncing.domain.usecases
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
 import com.cross.sync.clipboard.domain.repository.SystemClipboardRepository
+import com.cross.sync.notifications.domain.repository.NotificationRepository
 import com.cross.sync.syncing.domain.entity.ServerEvent
 import com.cross.sync.syncing.domain.entity.ServerState
 import com.cross.sync.syncing.domain.repository.ClipboardServer
 import com.cross.sync.syncing.domain.repository.DeviceRepository
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 class StartSyncUseCase(
     private val server: ClipboardServer,
     private val systemClipboardRepository: SystemClipboardRepository,
     private val localClipboardRepository: LocalClipboardRepository,
-    private val deviceRepository: DeviceRepository
+    private val deviceRepository: DeviceRepository,
+    private val notificationRepository: NotificationRepository,
 ) {
     suspend operator fun invoke(): StateFlow<ServerState> = coroutineScope {
         val (stateFlow, eventFlow) = server.start()
@@ -24,6 +25,7 @@ class StartSyncUseCase(
         var lastOutboundAtMs: Long = 0L
         var suppressOutboundKey: String? = null
         var suppressOutboundUntilMs: Long = 0L
+        val authorizationCodeCopier = NotificationAuthorizationCodeCopier(systemClipboardRepository)
 
         launch {
             stateFlow.collect { state ->
@@ -56,7 +58,7 @@ class StartSyncUseCase(
 
 
         launch {
-            eventFlow.filterNotNull().collect { event ->
+            eventFlow.collect { event ->
                 when (event) {
                     is ServerEvent.AddedDevice -> {
                         deviceRepository.saveDevice(event.deviceData)
@@ -66,6 +68,30 @@ class StartSyncUseCase(
                         suppressOutboundKey = event.copiedData.normalizedClipboardKey()
                         suppressOutboundUntilMs = System.currentTimeMillis() + SUPPRESS_OUTBOUND_WINDOW_MS
                         systemClipboardRepository.setData(event.copiedData)
+                    }
+
+                    is ServerEvent.ReceivedNotification -> {
+                        notificationRepository.upsert(event.notification)
+                        authorizationCodeCopier.copyIfPresent(event.notification, System.currentTimeMillis()) { data ->
+                            suppressOutboundKey = data.normalizedClipboardKey()
+                            suppressOutboundUntilMs = System.currentTimeMillis() + SUPPRESS_OUTBOUND_WINDOW_MS
+                        }
+                    }
+
+                    is ServerEvent.RemovedNotification -> {
+                        notificationRepository.markRemoved(
+                            deviceId = event.deviceId,
+                            notificationKey = event.removal.notificationKey,
+                            removedAt = event.removal.removedAt,
+                        )
+                    }
+
+                    is ServerEvent.ReceivedNotificationSnapshot -> {
+                        notificationRepository.reconcileActive(
+                            deviceId = event.deviceId,
+                            activeKeys = event.snapshot.activeKeys,
+                            capturedAt = event.snapshot.capturedAt,
+                        )
                     }
                 }
             }

@@ -8,6 +8,7 @@ import com.cross.sync.syncing.domain.usecases.DeleteDeviceUseCase
 import com.cross.sync.syncing.domain.usecases.ObserveDevicesUseCase
 import com.cross.sync.syncing.domain.usecases.ObservePairingUseCase
 import com.cross.sync.syncing.domain.usecases.StartSyncUseCase
+import com.cross.sync.syncing.domain.usecases.SendNotificationActionUseCase
 import com.cross.sync.syncing.network.LocalServer
 import com.cross.sync.syncing.network.crypto.AesGcmCryptoEngine
 import com.cross.sync.syncing.network.crypto.CryptoEngine
@@ -27,4 +28,5 @@ actual val platformSyncingModule: Module
         singleOf(::ObserveDevicesUseCase)
         singleOf(::ObservePairingUseCase)
         singleOf(::StartSyncUseCase)
+        singleOf(::SendNotificationActionUseCase)
     }

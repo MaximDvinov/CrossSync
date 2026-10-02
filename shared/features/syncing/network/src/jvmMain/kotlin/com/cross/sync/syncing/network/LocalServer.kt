@@ -2,6 +2,8 @@ package com.cross.sync.syncing.network
 
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
+import com.cross.sync.clipboard.domain.repository.SystemClipboardRepository
+import com.cross.sync.notifications.domain.entity.NotificationActionRequest
 import com.cross.sync.syncing.domain.entity.DeviceData
 import com.cross.sync.syncing.domain.entity.PairingState
 import com.cross.sync.syncing.domain.entity.ServerEvent
@@ -52,10 +54,12 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.close
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -72,7 +76,8 @@ import java.util.Collections
 class LocalServer(
     private val cryptoEngine: CryptoEngine,
     private val deviceRepository: DeviceRepository,
-    private val localClipboardRepository: LocalClipboardRepository
+    private val localClipboardRepository: LocalClipboardRepository,
+    private val systemClipboardRepository: SystemClipboardRepository
 ) : ClipboardServer {
     private val coroutineScope: CoroutineScope =
         CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -84,13 +89,16 @@ class LocalServer(
         Collections.synchronizedMap(mutableMapOf<String, DefaultWebSocketServerSession>())
 
     private val serverState: MutableStateFlow<ServerState> = MutableStateFlow(ServerState.Stopped())
-    private val serverEvent: MutableStateFlow<ServerEvent?> = MutableStateFlow(null)
+    private val serverEvent = MutableSharedFlow<ServerEvent>(
+        replay = 0,
+        extraBufferCapacity = SERVER_EVENT_BUFFER_SIZE
+    )
     private val pairingState: MutableStateFlow<PairingState> = MutableStateFlow(PairingState.Idle())
 
     private var actualQrCodeConfig: QrConnectionConfig? = null
     private var activeQrCodeJson: String? = null
 
-    override fun start(): Pair<StateFlow<ServerState>, SharedFlow<ServerEvent?>> {
+    override fun start(): Pair<StateFlow<ServerState>, SharedFlow<ServerEvent>> {
         if (server != null) return serverState to serverEvent
 
         coroutineScope.launch {
@@ -216,19 +224,60 @@ class LocalServer(
                 }
 
                 val data = call.receive<DataPackage>()
-                cryptoEngine.decrypt(data.encryptedContent, secretKey = device.secretKey)
-                    .onSuccess {
-                        val payload = runCatching {
-                            json.decodeFromString<SyncPayloadDto>(it)
-                        }.getOrNull()
+                val decryptedData = cryptoEngine.decrypt(
+                    data.encryptedContent,
+                    secretKey = device.secretKey
+                ).getOrElse {
+                    call.respond(HttpStatusCode.BadRequest, "Cannot decrypt sync data")
+                    return@post
+                }
+                val payload = runCatching {
+                    val payload = json.decodeFromString<SyncPayloadDto>(decryptedData)
+                    payload
+                }.getOrNull()
 
-                        val copiedData = when (payload) {
-                            is SyncPayloadDto.CopiedDataPayload -> payload.data.toDomain()
-                            else -> json.decodeFromString<CopiedDataDto>(it).toDomain()
-                        }
-                        serverEvent.emit(ServerEvent.ReceivedCopiedData(copiedData))
+                when (payload) {
+                    is SyncPayloadDto.CopiedDataPayload -> {
+                        serverEvent.emit(ServerEvent.ReceivedCopiedData(payload.data.toDomain()))
                     }
 
+                    is SyncPayloadDto.NotificationPayload -> {
+                        serverEvent.emit(
+                            ServerEvent.ReceivedNotification(
+                                deviceId = device.id,
+                                notification = payload.notification.copy(deviceId = device.id),
+                            )
+                        )
+                    }
+
+                    is SyncPayloadDto.NotificationRemovedPayload -> {
+                        serverEvent.emit(
+                            ServerEvent.RemovedNotification(
+                                deviceId = device.id,
+                                removal = payload.removal,
+                            )
+                        )
+                    }
+
+                    is SyncPayloadDto.NotificationSnapshotPayload -> {
+                        serverEvent.emit(
+                            ServerEvent.ReceivedNotificationSnapshot(device.id, payload.snapshot)
+                        )
+                    }
+
+                    null -> runCatching {
+                        val copiedData = json.decodeFromString<CopiedDataDto>(decryptedData).toDomain()
+                        serverEvent.emit(ServerEvent.ReceivedCopiedData(copiedData))
+                    }.getOrElse {
+                        call.respond(HttpStatusCode.BadRequest, "Invalid sync payload")
+                        return@post
+                    }
+
+                    else -> {
+                        call.respond(HttpStatusCode.BadRequest, "Unsupported sync payload")
+                        return@post
+                    }
+                }
                 call.respond(HttpStatusCode.OK)
             }
         }
@@ -245,7 +294,18 @@ class LocalServer(
                 emitPairingConnected(device)
 
                 try {
-                    sendSnapshot(device, this)
+                    val snapshotRequest = receiveDeserialized<DataPackage>()
+                    val knownCopiedDataIds = cryptoEngine.decrypt(
+                        snapshotRequest.encryptedContent,
+                        secretKey = device.secretKey
+                    ).mapCatching { decrypted ->
+                        json.decodeFromString<SyncPayloadDto>(decrypted)
+                    }.getOrNull()
+                        ?.let { it as? SyncPayloadDto.SnapshotRequestPayload }
+                        ?.knownCopiedDataIds
+                        .orEmpty()
+
+                    sendSnapshot(device, this, knownCopiedDataIds)
 
                     incoming.consumeEach {
                         val data = receiveDeserialized<DataPackage>()
@@ -268,7 +328,10 @@ class LocalServer(
                     println("onError ${closeReason.await()}")
                     e.printStackTrace()
                 } finally {
-                    connections.remove(device.id)
+                    synchronized(connections) {
+                        // A reconnect may already have replaced this session.
+                        if (connections[device.id] === this) connections.remove(device.id)
+                    }
                     emitPairingByActiveConnections()
                 }
             }
@@ -289,25 +352,61 @@ class LocalServer(
     override suspend fun sendCopiedDataWebSocket(message: CopiedData): Result<Unit> {
         if (!message.isSyncableText()) return Result.success(Unit)
 
-        connections.forEach { (deviceId, session) ->
+        val activeConnections = synchronized(connections) { connections.toMap() }
+        var firstError: Throwable? = null
+
+        activeConnections.forEach { (deviceId, session) ->
             val payload = SyncPayloadDto.CopiedDataPayload(message.toDto())
             val json = json.encodeToString<SyncPayloadDto>(payload)
             val device = deviceId?.let { deviceRepository.getDeviceById(it) }
             val encryptedMessage =
                 device?.secretKey?.let { cryptoEngine.encrypt(json, it) }
 
-
             if (encryptedMessage != null) {
-                session.sendSerialized(DataPackage(encryptedMessage))
+                runCatching {
+                    session.sendSerialized(DataPackage(encryptedMessage))
+                }.onFailure { error ->
+                    if (firstError == null) firstError = error
+                    synchronized(connections) {
+                        if (connections[deviceId] === session) {
+                            connections.remove(deviceId)
+                        }
+                    }
+                }
             }
         }
 
-        return Result.success(Unit)
+        return firstError?.let(Result.Companion::failure) ?: Result.success(Unit)
+    }
+
+    override suspend fun sendNotificationAction(action: NotificationActionRequest): Result<Unit> {
+        val session = synchronized(connections) { connections[action.deviceId] }
+            ?: return Result.failure(IllegalStateException("Android device is offline"))
+        val device = deviceRepository.getDeviceById(action.deviceId)
+            ?: return Result.failure(IllegalArgumentException("Unknown device"))
+
+        return try {
+            sendPayload(
+                session = session,
+                secretKey = device.secretKey,
+                payload = SyncPayloadDto.NotificationActionPayload(action),
+            )
+            Result.success(Unit)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            synchronized(connections) {
+                if (connections[action.deviceId] === session) connections.remove(action.deviceId)
+            }
+            emitPairingByActiveConnections()
+            Result.failure(error)
+        }
     }
 
     private suspend fun sendSnapshot(
         device: DeviceData,
-        session: DefaultWebSocketServerSession
+        session: DefaultWebSocketServerSession,
+        knownCopiedDataIds: Set<Long>
     ) {
         val categories = localClipboardRepository.observeCategories().first()
         categories.forEach { category ->
@@ -321,19 +420,23 @@ class LocalServer(
             )
         }
 
-        val copiedData = localClipboardRepository.getAllCopiedData()
+        val allCopiedData = localClipboardRepository.getAllCopiedData()
             .filter { it.isSyncableText() }
+
+        val copiedData = allCopiedData
+            .filterNot { it.id in knownCopiedDataIds }
             .sortedBy { it.dateTime }
 
         copiedData.forEach { data ->
             sendPayload(
                 session = session,
                 secretKey = device.secretKey,
-                payload = SyncPayloadDto.CopiedDataPayload(data.toDto())
+                payload = SyncPayloadDto.HistoryCopiedDataPayload(data.toDto())
             )
         }
 
-        val syncedIds = copiedData.mapTo(mutableSetOf()) { it.id }
+        // Bindings are idempotent and must also be sent for history the client already has.
+        val syncedIds = allCopiedData.mapTo(mutableSetOf()) { it.id }
         categories.forEach { category ->
             localClipboardRepository.observeCopiedDataByCategory(category.id).first()
                 .filter { it.id in syncedIds }
@@ -348,6 +451,16 @@ class LocalServer(
                     )
                 }
         }
+
+        systemClipboardRepository.getData()
+            ?.takeIf { it.isSyncableText() }
+            ?.let { currentClipboard ->
+                sendPayload(
+                    session = session,
+                    secretKey = device.secretKey,
+                    payload = SyncPayloadDto.CurrentClipboardPayload(currentClipboard.toDto())
+                )
+            }
     }
 
     private suspend fun sendPayload(
@@ -364,7 +477,7 @@ class LocalServer(
         return serverState
     }
 
-    override fun observeServerEvent(): SharedFlow<ServerEvent?> {
+    override fun observeServerEvent(): SharedFlow<ServerEvent> {
         return serverEvent
     }
 
@@ -431,6 +544,10 @@ class LocalServer(
         } else {
             pairingState.emit(PairingState.Idle())
         }
+    }
+
+    private companion object {
+        const val SERVER_EVENT_BUFFER_SIZE = 64
     }
 }
 

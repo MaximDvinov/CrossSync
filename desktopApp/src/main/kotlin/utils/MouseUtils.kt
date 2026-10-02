@@ -2,9 +2,8 @@ package utils
 
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.WindowPosition
 import java.awt.MouseInfo
+import java.awt.Point
 import kotlin.math.max
 import kotlin.math.min
 
@@ -13,12 +12,12 @@ fun getMouseAWTPosition(): Pair<Int, Int> {
     return point.x to point.y
 }
 
-fun calculateWindowPositionUnderMouse(
+fun calculateWindowLocationUnderMouse(
     windowStateWidthDp: Dp,
     windowStateHeightDp: Dp,
     density: Density,
     isCenter: Boolean,
-): WindowPosition {
+): Point {
     val pointerInfo = MouseInfo.getPointerInfo()
     val mousePoint = pointerInfo.location
     val screenBounds = pointerInfo.device.defaultConfiguration.bounds
@@ -34,5 +33,5 @@ fun calculateWindowPositionUnderMouse(
     desiredY =
         max(screenBounds.y, min(desiredY, screenBounds.y + screenBounds.height - windowHeightPx))
 
-    return WindowPosition.Absolute(desiredX.dp, desiredY.dp)
+    return Point(desiredX, desiredY)
 }

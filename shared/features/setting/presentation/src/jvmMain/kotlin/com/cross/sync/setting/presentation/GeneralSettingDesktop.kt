@@ -16,13 +16,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.cross.sync.theme.AppTheme
+import com.cross.sync.theme.AppThemeMode
 
 @Composable
 internal fun GeneralSettingDesktop(
     state: SettingState,
     onToggleLaunchAtStartup: () -> Unit,
+    onSetThemeMode: (AppThemeMode) -> Unit,
     onCycleClipboardAutoClearTimeout: () -> Unit,
-    onCycleQuickAccessHistorySize: () -> Unit
+    onCycleQuickAccessHistorySize: () -> Unit,
+    onCycleNotificationHistoryRetention: () -> Unit,
+    onCycleDesktopNotificationDelivery: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -52,6 +56,15 @@ internal fun GeneralSettingDesktop(
             }
 
             SettingGeneralItem(
+                title = "Appearance",
+                description = "Choose whether CrossSync follows the system, stays light, or stays dark.",
+                trailingText = state.themeMode.label,
+                onTrailingClick = {
+                    onSetThemeMode(state.themeMode.next())
+                }
+            )
+
+            SettingGeneralItem(
                 title = "Clipboard Data Auto-Clear Timeout",
                 description = "Defines how long copied data remains in the clipboard before being automatically removed.",
                 trailingText = "${state.clipboardAutoClearTimeoutDays} days",
@@ -63,6 +76,20 @@ internal fun GeneralSettingDesktop(
                 description = "Specifies how many recent copied items are shown in the Quick Access panel.",
                 trailingText = state.quickAccessHistorySize.toString(),
                 onTrailingClick = onCycleQuickAccessHistorySize
+            )
+
+            SettingGeneralItem(
+                title = "Notification History",
+                description = "Inactive notifications are kept for the selected number of days.",
+                trailingText = "${state.notificationHistoryRetentionDays} days",
+                onTrailingClick = onCycleNotificationHistoryRetention,
+            )
+
+            SettingGeneralItem(
+                title = "macOS Notification Delivery",
+                description = "Choose system notifications, the CrossSync popup, or both.",
+                trailingText = state.desktopNotificationDelivery.label,
+                onTrailingClick = onCycleDesktopNotificationDelivery,
             )
         }
     }

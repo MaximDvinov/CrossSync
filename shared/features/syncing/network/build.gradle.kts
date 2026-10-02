@@ -7,7 +7,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.cross.sync.syncing.network"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }
@@ -31,6 +31,7 @@ kotlin {
 
             implementation(projects.shared.features.syncing.domain)
             implementation(projects.shared.features.clipboard.domain)
+            implementation(projects.shared.features.notifications.domain)
 
         }
 
@@ -48,7 +49,7 @@ kotlin {
             implementation(libs.ktor.server.netty)
             implementation(libs.ktor.server.call.logging)
             implementation(libs.ktor.server.auth)
-            implementation("ch.qos.logback:logback-classic:1.5.6")
+            implementation(libs.logback.classic)
             implementation(libs.ktor.server.auth.jwt)
             implementation(libs.slf4j.simple)
         }

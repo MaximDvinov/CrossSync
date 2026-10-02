@@ -2,14 +2,15 @@ package com.cross.sync.core.db
 
 import androidx.room.Dao
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy.Companion.IGNORE
+import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.Query
 import com.cross.sync.core.db.entities.DeviceEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface DeviceDao {
-    @Insert(onConflict = IGNORE)
+    // Pairing and token refresh must replace credentials for an existing device.
+    @Insert(onConflict = REPLACE)
     suspend fun insert(deviceEntity: DeviceEntity)
 
     @Query("SELECT * FROM devices WHERE id = :id")

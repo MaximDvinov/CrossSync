@@ -2,7 +2,7 @@
 
 [![Status](https://img.shields.io/badge/status-WIP-orange)](https://github.com/MaximDvinov/CrossSync)
 [![Kotlin](https://img.shields.io/badge/kotlin-2.3.10-blue.svg?logo=kotlin)](http://kotlinlang.org)
-[![Compose](https://img.shields.io/badge/compose-1.10.0-blue.svg?logo=jetpackcompose)](https://www.jetbrains.com/lp/compose-multiplatform)
+[![Compose](https://img.shields.io/badge/compose-1.12.0-blue.svg?logo=jetpackcompose)](https://www.jetbrains.com/lp/compose-multiplatform)
 ![macOS](https://img.shields.io/badge/platform-macOS-blue)
 ![Android](https://img.shields.io/badge/platform-android-green)
 
@@ -14,7 +14,11 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
 - Local clipboard history with categories.
 - Support for text, formatted text (HTML/RTF), images, and files in local clipboard history.
 - LAN synchronization with encryption (text and formatted text).
+- Android notification synchronization to macOS over the local network.
+- macOS notification popup with notification text, app metadata, icons, images, avatars, grouping, and notification state.
+- Interactive notification actions, dismissal, and inline replies from macOS.
 - Settings: desktop auto-start, history auto-cleanup, quick history size, excluded applications.
+- Settings for notification synchronization and notification content visibility.
 
 ## Tech Stack
 - Kotlin Multiplatform, Compose Multiplatform
@@ -38,6 +42,9 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
 - [x] Text/formatted-text synchronization over LAN
 - [x] macOS quick-access window hotkey (`Meta + Shift + V`)
 - [x] Basic sync and history cleanup settings
+- [x] Android notification synchronization to macOS
+- [x] Interactive notification actions and inline replies
+- [x] Notification sync and content visibility settings
 - [ ] Image and file synchronization across devices
 - [ ] Windows/Linux desktop support
 - [ ] Public release artifacts (.dmg/.apk) and release docs

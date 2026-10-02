@@ -1,20 +1,22 @@
 plugins {
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.android.application)
 }
 
+val appVersion = providers.gradleProperty("appVersion").orElse("1.5.1").get()
+val appVersionCode = providers.gradleProperty("appVersionCode").orElse("1").get().toInt()
+
 android {
     namespace = "com.cross.sync"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 37
 
         applicationId = "com.cross.sync.androidApp"
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersion
     }
 }
 
@@ -37,6 +39,10 @@ dependencies {
     implementation(projects.shared.features.clipboard.data)
     implementation(projects.shared.features.clipboard.domain)
     implementation(projects.shared.features.syncing.data)
+    implementation(projects.shared.features.syncing.domain)
+    implementation(projects.shared.features.notifications.data)
+    implementation(projects.shared.features.notifications.domain)
+    implementation(projects.shared.features.setting.domain)
     implementation(projects.shared.core.ui)
 
 }

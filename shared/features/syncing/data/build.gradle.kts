@@ -6,7 +6,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.cross.sync.syncing.data"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }
@@ -22,6 +22,7 @@ kotlin {
             implementation(projects.shared.features.clipboard.domain)
             implementation(projects.shared.core.db)
             implementation(projects.shared.features.syncing.network)
+            implementation(projects.shared.features.notifications.domain)
 
         }
 

@@ -6,7 +6,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.cross.sync.syncing.domain"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }
@@ -14,10 +14,12 @@ kotlin {
     jvm()
 
     sourceSets {
+        jvmTest.dependencies { implementation(kotlin("test")) }
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
             implementation(projects.shared.features.clipboard.domain)
+            implementation(projects.shared.features.notifications.domain)
         }
 
         androidMain.dependencies {

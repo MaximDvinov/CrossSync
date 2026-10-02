@@ -9,7 +9,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.cross.sync.navigation"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }

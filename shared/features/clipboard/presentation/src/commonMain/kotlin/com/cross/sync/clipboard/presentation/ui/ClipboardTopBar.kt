@@ -21,11 +21,15 @@ import androidx.compose.ui.unit.dp
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.Close
 import com.cross.sync.theme.icons.CrossSync
+import compose.icons.FeatherIcons
+import compose.icons.feathericons.Bell
 
 @Composable
 fun TopBar(
     onClose: (() -> Unit)?,
     onOpenSettings: (() -> Unit)? = null,
+    onOpenHome: (() -> Unit)? = null,
+    onOpenNotifications: (() -> Unit)? = null,
     actionButtonSize: Dp = 32.dp,
     logoSize: Dp = 32.dp,
     contentPadding: Dp = 20.dp,
@@ -44,7 +48,11 @@ fun TopBar(
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .clickable(enabled = onOpenHome != null) {
+                    onOpenHome?.invoke()
+                },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -61,6 +69,17 @@ fun TopBar(
                     color = AppTheme.colors.primary,
                     textAlign = TextAlign.Start,
                 )
+            )
+        }
+
+        TopBarAction(
+            onClick = onOpenNotifications,
+            size = actionButtonSize
+        ) {
+            Icon(
+                imageVector = FeatherIcons.Bell,
+                contentDescription = "Notifications",
+                tint = AppTheme.colors.onSurfaceVariant
             )
         }
 

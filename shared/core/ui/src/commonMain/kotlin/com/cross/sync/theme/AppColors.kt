@@ -31,4 +31,25 @@ val lightColors by lazy {
     )
 }
 
+/**
+ * A low-glare dark palette that preserves the app's blue connection accent.
+ *
+ * Surfaces are blue-grey rather than pure black so cards and controls retain
+ * their hierarchy, while the lighter primary remains legible on dark screens.
+ */
+val darkColors by lazy {
+    AppColors(
+        primary = Color(0xFFA9C7FF),
+        onPrimary = Color(0xFF00325C),
+        surface = Color(0xFF111B25),
+        onSurface = Color(0xFFE2EDF9),
+        surfaceVariant = Color(0xFF243445),
+        onSurfaceVariant = Color(0xFFB8D2F0),
+        background = Color(0xFF0B141D),
+        outline = Color(0xFF8FA2B7),
+        redContainer = Color(0xFF5D2B32),
+        onRedContainer = Color(0xFFFFDADD)
+    )
+}
+
 val LocalAppColors = staticCompositionLocalOf { AppColors() }

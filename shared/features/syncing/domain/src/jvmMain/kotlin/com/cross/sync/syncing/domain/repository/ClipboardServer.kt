@@ -6,14 +6,16 @@ import com.cross.sync.syncing.domain.entity.ServerEvent
 import com.cross.sync.syncing.domain.entity.ServerState
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import com.cross.sync.notifications.domain.entity.NotificationActionRequest
 
 interface ClipboardServer {
-    fun start(): Pair<StateFlow<ServerState>, SharedFlow<ServerEvent?>>
+    fun start(): Pair<StateFlow<ServerState>, SharedFlow<ServerEvent>>
     fun stop()
 
     fun startPairing(): StateFlow<PairingState>
     suspend fun sendCopiedDataWebSocket(message: CopiedData): Result<Unit>
+    suspend fun sendNotificationAction(action: NotificationActionRequest): Result<Unit>
     fun observeServerState(): StateFlow<ServerState>
-    fun observeServerEvent(): SharedFlow<ServerEvent?>
+    fun observeServerEvent(): SharedFlow<ServerEvent>
     fun observePairingState(): StateFlow<PairingState?>
 }

@@ -2,6 +2,11 @@ package com.cross.sync.syncing.network
 
 import com.cross.sync.clipboard.domain.entity.CopiedData
 import com.cross.sync.clipboard.domain.entity.Category
+import com.cross.sync.clipboard.domain.repository.LocalClipboardRepository
+import com.cross.sync.notifications.domain.entity.NotificationActionRequest
+import com.cross.sync.notifications.domain.entity.NotificationRemoval
+import com.cross.sync.notifications.domain.entity.NotificationSnapshot
+import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.syncing.domain.entity.ClientConnectState
 import com.cross.sync.syncing.domain.entity.DeviceData
 import com.cross.sync.syncing.domain.entity.SyncSettingsKeys
@@ -33,6 +38,7 @@ import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.receiveDeserialized
+import io.ktor.client.plugins.websocket.sendSerialized
 import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -43,6 +49,8 @@ import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.util.appendIfNameAbsent
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,14 +60,19 @@ import kotlin.coroutines.cancellation.CancellationException
 class ClipboardClient(
     private val cryptoEngine: CryptoEngine,
     private val deviceRepository: DeviceRepository,
+    private val localClipboardRepository: LocalClipboardRepository,
     private val setting: Settings
 ) {
     private val json: Json = Json
     private var client: HttpClient? = null
     private var config: QrConnectionConfig? = null
-    private val messagesFlow = MutableSharedFlow<CopiedData>(1)
+    private val messagesFlow = MutableSharedFlow<IncomingCopiedData>(1)
     private val categoryFlow = MutableSharedFlow<Category>(1)
     private val categoryBindingFlow = MutableSharedFlow<CategoryBinding>(1)
+    // Actions are commands with one consumer (the Android sync service). A channel
+    // keeps commands received during reconnect/startup instead of dropping them as
+    // a replay=0 SharedFlow would.
+    private val notificationActionChannel = Channel<NotificationActionRequest>(Channel.BUFFERED)
 
     private val connectedState = MutableStateFlow<ClientConnectState>(ClientConnectState.Idle)
 
@@ -162,6 +175,16 @@ class ClipboardClient(
                     val device = deviceRepository.getDeviceById(null)
                         ?: error("Device not found")
 
+                    val knownCopiedDataIds = localClipboardRepository.getAllCopiedData()
+                        .mapTo(mutableSetOf()) { it.id }
+                    val snapshotRequest = SyncPayloadDto.SnapshotRequestPayload(knownCopiedDataIds)
+                    val requestJson = json.encodeToString<SyncPayloadDto>(snapshotRequest)
+                    sendSerialized(
+                        DataPackage(
+                            cryptoEngine.encrypt(requestJson, secretKey = device.secretKey)
+                        )
+                    )
+
                     connectedState.emit(ClientConnectState.Connected)
 
                     Napier.log(
@@ -184,7 +207,30 @@ class ClipboardClient(
 
                                 when (payload) {
                                     is SyncPayloadDto.CopiedDataPayload -> {
-                                        messagesFlow.emit(payload.data.toDomain())
+                                        messagesFlow.emit(
+                                            IncomingCopiedData(
+                                                data = payload.data.toDomain(),
+                                                updateSystemClipboard = true
+                                            )
+                                        )
+                                    }
+
+                                    is SyncPayloadDto.HistoryCopiedDataPayload -> {
+                                        messagesFlow.emit(
+                                            IncomingCopiedData(
+                                                data = payload.data.toDomain(),
+                                                updateSystemClipboard = false
+                                            )
+                                        )
+                                    }
+
+                                    is SyncPayloadDto.CurrentClipboardPayload -> {
+                                        messagesFlow.emit(
+                                            IncomingCopiedData(
+                                                data = payload.data.toDomain(),
+                                                updateSystemClipboard = true
+                                            )
+                                        )
                                     }
 
                                     is SyncPayloadDto.CategoryPayload -> {
@@ -205,11 +251,22 @@ class ClipboardClient(
                                         )
                                     }
 
+                                    is SyncPayloadDto.NotificationActionPayload -> {
+                                        notificationActionChannel.send(payload.request)
+                                    }
+
                                     null -> {
                                         // Backward compatibility: previously only CopiedDataDto was sent.
                                         val message = json.decodeFromString<CopiedDataDto>(it)
-                                        messagesFlow.emit(message.toDomain())
+                                        messagesFlow.emit(
+                                            IncomingCopiedData(
+                                                data = message.toDomain(),
+                                                updateSystemClipboard = true
+                                            )
+                                        )
                                     }
+
+                                    else -> Unit
                                 }
                             }
                         }
@@ -249,19 +306,22 @@ class ClipboardClient(
     }
 
     suspend fun sendCopiedData(copiedData: CopiedData): Result<Unit> = runCatchingForApi {
-        client ?: throw ClientException()
-        val device = deviceRepository.getDeviceById(null) ?: throw Exception("Device not found")
-        client!!.post(SEND_ROUTE) {
-            val payload = SyncPayloadDto.CopiedDataPayload(copiedData.toDto())
-            val data = json.encodeToString<SyncPayloadDto>(payload)
-
-            setBody(
-                DataPackage(cryptoEngine.encrypt(data, secretKey = device.secretKey))
-            )
-        }
+        sendPayloadToServer(SyncPayloadDto.CopiedDataPayload(copiedData.toDto()))
     }
 
-    suspend fun observeCopiedData(): Flow<CopiedData> {
+    suspend fun sendNotification(notification: SyncedNotification): Result<Unit> = runCatchingForApi {
+        sendPayloadToServer(SyncPayloadDto.NotificationPayload(notification))
+    }
+
+    suspend fun removeNotification(removal: NotificationRemoval): Result<Unit> = runCatchingForApi {
+        sendPayloadToServer(SyncPayloadDto.NotificationRemovedPayload(removal))
+    }
+
+    suspend fun sendNotificationSnapshot(snapshot: NotificationSnapshot): Result<Unit> = runCatchingForApi {
+        sendPayloadToServer(SyncPayloadDto.NotificationSnapshotPayload(snapshot))
+    }
+
+    suspend fun observeCopiedData(): Flow<IncomingCopiedData> {
         return messagesFlow
     }
 
@@ -273,6 +333,8 @@ class ClipboardClient(
         return categoryBindingFlow
     }
 
+    fun observeNotificationActions(): Flow<NotificationActionRequest> = notificationActionChannel.receiveAsFlow()
+
     fun observeConnectedState(): StateFlow<ClientConnectState> {
         return connectedState
     }
@@ -283,12 +345,26 @@ class ClipboardClient(
             .normalizedHosts()
     }
 
+    private suspend fun sendPayloadToServer(payload: SyncPayloadDto) {
+        val httpClient = client ?: throw ClientException()
+        val device = deviceRepository.getDeviceById(null) ?: throw ClientException()
+        val plain = json.encodeToString<SyncPayloadDto>(payload)
+        httpClient.post(SEND_ROUTE) {
+            setBody(DataPackage(cryptoEngine.encrypt(plain, secretKey = device.secretKey)))
+        }
+    }
+
     companion object {}
 }
 
 data class CategoryBinding(
     val categoryId: Long,
     val copiedDataId: Long
+)
+
+data class IncomingCopiedData(
+    val data: CopiedData,
+    val updateSystemClipboard: Boolean
 )
 
 private fun createHttpClient(
@@ -305,6 +381,7 @@ private fun createHttpClient(
             socketTimeoutMillis = 5_000
         }
         install(WebSockets) {
+            pingIntervalMillis = 60_000
             contentConverter = KotlinxWebsocketSerializationConverter(Json {
                 ignoreUnknownKeys = true
                 isLenient = true
@@ -337,12 +414,18 @@ private fun createHttpClient(
 
                 refreshTokens {
                     val device = deviceRepository.getDeviceById(null)
+                        ?: throw ClientException("Device not found")
                     val tokens = client.post(AUTH_REFRESH_ROUTE) {
-                        device?.refreshToken?.let { token ->
-                            setBody(RefreshRequest(token))
-                        }
+                        setBody(RefreshRequest(device.refreshToken))
                         markAsRefreshTokenRequest()
                     }.body<TokenResponse>()
+
+                    deviceRepository.saveDevice(
+                        device.copy(
+                            accessToken = tokens.accessToken,
+                            refreshToken = tokens.refreshToken
+                        )
+                    )
 
                     BearerTokens(
                         accessToken = tokens.accessToken,

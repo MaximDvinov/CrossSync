@@ -3,14 +3,13 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.android.kmp.library)
-    alias(libs.plugins.compose.hot.reload)
     alias(libs.plugins.kotlinx.serialization)
 }
 
 kotlin {
     android {
         namespace = "com.cross.sync.client"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }
@@ -37,6 +36,7 @@ kotlin {
             implementation(projects.shared.features.clipboard.di)
             implementation(projects.shared.features.syncing.di)
             implementation(projects.shared.features.setting.di)
+            implementation(projects.shared.features.notifications.di)
             implementation(projects.shared.core.ui)
             implementation(projects.shared.core.navigation)
 //            api(libs.androidx.navigation3.runtime)

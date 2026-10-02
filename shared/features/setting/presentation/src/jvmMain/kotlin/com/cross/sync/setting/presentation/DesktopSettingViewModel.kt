@@ -13,6 +13,7 @@ import com.cross.sync.syncing.domain.entity.PairingState
 import com.cross.sync.syncing.domain.usecases.AddDeviceUseCase
 import com.cross.sync.syncing.domain.usecases.DeleteDeviceUseCase
 import com.cross.sync.syncing.domain.usecases.ObserveDevicesUseCase
+import com.cross.sync.theme.AppThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -37,8 +38,11 @@ class DesktopSettingViewModel(
             it.copy(
                 launchAtSystemStartup = launchAtSystemStartup,
                 localization = generalSettings.localization,
+                themeMode = AppThemeMode.fromStoredValue(generalSettings.themeMode),
                 clipboardAutoClearTimeoutDays = generalSettings.clipboardAutoClearTimeoutDays,
                 quickAccessHistorySize = generalSettings.quickAccessHistorySize,
+                notificationHistoryRetentionDays = generalSettings.notificationHistoryRetentionDays,
+                desktopNotificationDelivery = generalSettings.desktopNotificationDelivery,
                 excludedApplicationIds = settingPreferencesStore.getExcludedApplicationIds().sorted()
             )
         }
@@ -128,6 +132,11 @@ class DesktopSettingViewModel(
         _state.update { it.copy(clipboardAutoClearTimeoutDays = newValue) }
     }
 
+    fun setThemeMode(themeMode: AppThemeMode) {
+        settingPreferencesStore.setThemeMode(themeMode.name)
+        _state.update { it.copy(themeMode = themeMode) }
+    }
+
     fun cycleQuickAccessHistorySize() {
         val newValue = cycleOption(
             current = _state.value.quickAccessHistorySize,
@@ -135,6 +144,24 @@ class DesktopSettingViewModel(
         )
         settingPreferencesStore.setQuickAccessHistorySize(newValue)
         _state.update { it.copy(quickAccessHistorySize = newValue) }
+    }
+
+    fun cycleNotificationHistoryRetention() {
+        val newValue = cycleOption(
+            current = _state.value.notificationHistoryRetentionDays,
+            options = SettingPreferencesStore.NOTIFICATION_HISTORY_RETENTION_DAYS_OPTIONS,
+        )
+        settingPreferencesStore.setNotificationHistoryRetentionDays(newValue)
+        _state.update { it.copy(notificationHistoryRetentionDays = newValue) }
+    }
+
+    fun cycleDesktopNotificationDelivery() {
+        val delivery = cycleOption(
+            current = _state.value.desktopNotificationDelivery,
+            options = SettingPreferencesStore.DESKTOP_NOTIFICATION_DELIVERY_OPTIONS,
+        )
+        settingPreferencesStore.setDesktopNotificationDelivery(delivery)
+        _state.update { it.copy(desktopNotificationDelivery = delivery) }
     }
 
     fun addExcludedApplication(applicationId: String) {
@@ -173,6 +200,3 @@ class DesktopSettingViewModel(
         return actualValue
     }
 }
-
-
-

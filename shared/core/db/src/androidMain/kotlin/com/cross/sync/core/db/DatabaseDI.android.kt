@@ -24,4 +24,8 @@ actual val databaseModule: Module
         single<DeviceDao> {
             get<AppDatabase>().getDeviceDao()
         }
+
+        single<NotificationDao> {
+            get<AppDatabase>().getNotificationDao()
+        }
     }

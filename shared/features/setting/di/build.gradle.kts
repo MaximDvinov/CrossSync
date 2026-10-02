@@ -6,7 +6,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.cross.sync.setting.di"
-        compileSdk = 36
+        compileSdk = 37
         minSdk = 24
         androidResources.enable = true
     }
@@ -31,6 +31,7 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.kotlinx.coroutines.android)
+            implementation(projects.shared.features.notifications.domain)
         }
 
         jvmMain.dependencies {
