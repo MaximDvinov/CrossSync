@@ -22,6 +22,8 @@ data class SyncedNotification(
     val hasPreview: Boolean = true,
     val media: NotificationMedia? = null,
     val actions: List<NotificationActionDescriptor> = emptyList(),
+    // Transport-only: null means a legacy sender; empty means no code in the current content.
+    val authorizationCode: String? = null,
 )
 
 @Serializable

@@ -14,6 +14,7 @@ import android.content.Intent
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.cross.sync.notifications.domain.entity.NotificationAction
+import com.cross.sync.notifications.domain.extractAuthorizationCode
 import com.cross.sync.notifications.domain.entity.NotificationActionDescriptor
 import com.cross.sync.notifications.domain.entity.NotificationActionRequest
 import com.cross.sync.notifications.domain.entity.NotificationKind
@@ -172,7 +173,9 @@ class AndroidNotificationListener : NotificationListenerService() {
         val previous = published[sbn.key]
         if (!force && previous?.copy(updatedAt = 0) == notification.copy(updatedAt = 0)) return
 
-        GlobalContext.get().get<NotificationPublisher>().publish(notification)
+        // Keep the canonical content for deduplication; a snapshot must not trigger copying.
+        val payload = if (force) notification.copy(authorizationCode = "") else notification
+        GlobalContext.get().get<NotificationPublisher>().publish(payload)
             .onSuccess { published[sbn.key] = notification }
     }
 
@@ -329,6 +332,29 @@ private fun StatusBarNotification.toSyncedNotification(
                 supportsReply = action.remoteInputs.orEmpty().any { it.allowFreeFormInput },
             )
         },
+        authorizationCode = if (includeContent) notification.authorizationCode().orEmpty() else "",
+    )
+}
+
+private fun Notification.authorizationCode(): String? {
+    val currentMessages = extras.messageBundles(Notification.EXTRA_MESSAGES)
+    val latestMessage = currentMessages.lastOrNull()
+    if (latestMessage != null) {
+        // Never fall back to the conversation history when the newest message has no code.
+        val sentAt = latestMessage.getLong("time")
+        if (sentAt > 0 && System.currentTimeMillis() - sentAt > 5 * 60_000L) return null
+        return extractAuthorizationCode(
+            extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty(),
+            latestMessage.getCharSequence("text")?.toString().orEmpty(),
+        )
+    }
+    if (extras.messageBundles(Notification.EXTRA_HISTORIC_MESSAGES).isNotEmpty()) return null
+    return extractAuthorizationCode(
+        extras.getCharSequence(Notification.EXTRA_TITLE_BIG)?.toString().orEmpty(),
+        extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty(),
+        extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString().orEmpty(),
+        extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty(),
+        extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES).orEmpty().joinToString("\n"),
     )
 }
 

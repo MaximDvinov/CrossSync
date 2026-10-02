@@ -25,6 +25,7 @@ class StartSyncUseCase(
         var lastOutboundAtMs: Long = 0L
         var suppressOutboundKey: String? = null
         var suppressOutboundUntilMs: Long = 0L
+        val authorizationCodeCopier = NotificationAuthorizationCodeCopier(systemClipboardRepository)
 
         launch {
             stateFlow.collect { state ->
@@ -71,6 +72,10 @@ class StartSyncUseCase(
 
                     is ServerEvent.ReceivedNotification -> {
                         notificationRepository.upsert(event.notification)
+                        authorizationCodeCopier.copyIfPresent(event.notification, System.currentTimeMillis()) { data ->
+                            suppressOutboundKey = data.normalizedClipboardKey()
+                            suppressOutboundUntilMs = System.currentTimeMillis() + SUPPRESS_OUTBOUND_WINDOW_MS
+                        }
                     }
 
                     is ServerEvent.RemovedNotification -> {
