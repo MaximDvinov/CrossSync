@@ -40,4 +40,8 @@ class NotificationRepositoryImpl(
     override fun observeNotifications(): Flow<List<SyncedNotification>> {
         return dao.observeAll().map { notifications -> notifications.map { it.toDomain() } }
     }
+
+    override fun observeActiveNotifications(): Flow<List<SyncedNotification>> {
+        return dao.observeActive().map { notifications -> notifications.map { it.toDomain() } }
+    }
 }

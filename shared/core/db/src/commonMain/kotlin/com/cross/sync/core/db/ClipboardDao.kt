@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy.Companion.IGNORE
 import androidx.room.Query
+import androidx.room.Transaction
 import com.cross.sync.core.db.entities.CopiedDataEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -37,10 +38,28 @@ interface ClipboardDao {
     suspend fun getAllCopiedData(): List<CopiedDataEntity>
 
     @Query("DELETE FROM copied_data WHERE copiedDataId = :id")
-    suspend fun deleteById(id: Long)
+    suspend fun deleteRow(id: Long)
+
+    @Query("DELETE FROM CategoryCopiedDataCrossRef WHERE copiedDataId = :id")
+    suspend fun removeBindings(id: Long)
+
+    @Transaction
+    suspend fun deleteById(id: Long) {
+        removeBindings(id)
+        deleteRow(id)
+    }
 
     @Query("DELETE FROM copied_data")
-    suspend fun deleteAll()
+    suspend fun deleteAllRows()
+
+    @Query("DELETE FROM CategoryCopiedDataCrossRef")
+    suspend fun removeAllBindings()
+
+    @Transaction
+    suspend fun deleteAll() {
+        removeAllBindings()
+        deleteAllRows()
+    }
 
     @Query(
         """

@@ -10,6 +10,10 @@ import com.cross.sync.syncing.domain.usecases.ObservePairingUseCase
 import com.cross.sync.syncing.domain.usecases.StartSyncUseCase
 import com.cross.sync.syncing.domain.usecases.SendNotificationActionUseCase
 import com.cross.sync.syncing.network.LocalServer
+import com.cross.sync.syncing.network.JvmServerTokens
+import com.cross.sync.syncing.network.JvmServerNetworkInfo
+import com.cross.sync.syncing.network.ServerTokens
+import com.cross.sync.syncing.network.ServerNetworkInfo
 import com.cross.sync.syncing.network.crypto.AesGcmCryptoEngine
 import com.cross.sync.syncing.network.crypto.CryptoEngine
 import org.koin.core.module.Module
@@ -21,7 +25,9 @@ actual val platformSyncingModule: Module
     get() = module {
 
         singleOf(::AesGcmCryptoEngine) bind CryptoEngine::class
-        singleOf(::LocalServer) bind ClipboardServer::class
+        singleOf(::JvmServerTokens) bind ServerTokens::class
+        singleOf(::JvmServerNetworkInfo) bind ServerNetworkInfo::class
+        single<ClipboardServer> { LocalServer(get(), get(), get(), get(), get(), get(), settings = get()) }
         singleOf(::SyncRepositoryImpl) bind SyncRepository::class
         singleOf(::AddDeviceUseCase)
         singleOf(::DeleteDeviceUseCase)

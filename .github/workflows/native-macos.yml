@@ -1,0 +1,45 @@
+name: Native macOS
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
+      - name: Verify runner and compiler
+        run: |
+          test "$(uname -m)" = arm64
+          xcrun swiftc --version
+      - name: Test shared Kotlin and build debug framework
+        run: ./gradlew :shared:core:db:macosArm64Test :shared:features:syncing:domain:jvmTest :shared:features:syncing:runtime:jvmTest :shared:features:syncing:runtime:macosArm64Test :shared:features:notifications:viewmodel:jvmTest :shared:features:syncing:network:jvmTest :shared:macos:linkDebugFrameworkMacosArm64
+      - name: Test native adapters and protocol
+        run: bash macosApp/scripts/test-native.sh
+      - name: Build app and disk image
+        run: bash macosApp/scripts/package.sh
+      - name: Test release framework
+        run: CROSSSYNC_TEST_CONFIGURATION=Release bash macosApp/scripts/test-native.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CrossSync-Native-macOS-arm64
+          path: |
+            macosApp/build/CrossSync-Native-macOS.dmg
+            macosApp/build/Xcode/Build/Products/Release/CrossSync Native.app
+          if-no-files-found: error

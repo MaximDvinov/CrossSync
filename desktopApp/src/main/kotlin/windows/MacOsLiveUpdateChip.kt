@@ -31,6 +31,8 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import com.cross.sync.notifications.domain.entity.NotificationKind
 import com.cross.sync.notifications.domain.entity.SyncedNotification
+import com.cross.sync.components.rememberScreenViewModel
+import com.cross.sync.notifications.presentation.NotificationViewModel
 import com.cross.sync.notifications.presentation.NotificationPopupCard
 import com.cross.sync.theme.AppTheme
 import java.awt.Dimension
@@ -45,6 +47,8 @@ fun ApplicationScope.MacOsLiveUpdateChip(
     visible: Boolean,
     onDismiss: () -> Unit,
 ) {
+    // Commands must survive dismissal of an individual notification card.
+    val notificationViewModel = rememberScreenViewModel<NotificationViewModel>()
     val windowState = rememberWindowState(width = 360.dp, height = 220.dp)
     var nativeWindow by remember { mutableStateOf<java.awt.Window?>(null) }
     var displayedNotification by remember { mutableStateOf(notification) }
@@ -69,6 +73,8 @@ fun ApplicationScope.MacOsLiveUpdateChip(
         }
     }
 
+    if (!shouldShow && !visibility.currentState && visibility.isIdle) return
+
     Window(
         title = if (displayedNotification?.kind == NotificationKind.Call) "Call" else "Live Update",
         state = windowState,
@@ -80,6 +86,7 @@ fun ApplicationScope.MacOsLiveUpdateChip(
         resizable = false,
         onCloseRequest = onDismiss,
     ) {
+        DesktopUiResources.TrackWindow()
         val awtWindow = window
         DisposableEffect(awtWindow) {
             nativeWindow = awtWindow
@@ -147,6 +154,7 @@ fun ApplicationScope.MacOsLiveUpdateChip(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     NotificationPopupCard(
+                        viewModel = notificationViewModel,
                         notification = currentNotification,
                         onDismiss = onDismiss,
                         onReplyRequested = {

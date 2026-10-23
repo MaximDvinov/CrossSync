@@ -11,7 +11,7 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
-val notificationModule: Module = module {
+val notificationModule: Module get() = module {
     singleOf(::NotificationRepositoryImpl) bind NotificationRepository::class
     singleOf(::ObserveNotificationsUseCase)
     singleOf(::MarkNotificationReadUseCase)

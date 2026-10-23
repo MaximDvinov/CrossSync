@@ -16,6 +16,7 @@ interface LocalClipboardRepository {
     suspend fun deleteCategoryById(id: Long)
 
     suspend fun addCopiedDataToCategory(copiedDataId: Long, categoryId: Long)
+    suspend fun moveCopiedDataToCategory(copiedDataId: Long, fromCategoryId: Long?, toCategoryId: Long)
 
     suspend fun getAllCopiedData(): List<CopiedData>
     suspend fun clearAllCopiedDataInCategory(categoryId: Long?)

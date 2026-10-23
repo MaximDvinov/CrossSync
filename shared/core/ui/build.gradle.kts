@@ -20,6 +20,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            api(projects.shared.features.setting.domain)
             implementation(libs.runtime)
             implementation(libs.ui)
             implementation(libs.foundation)
@@ -38,12 +39,18 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
+            api(libs.koin.compose.viewmodel)
             implementation(libs.multiplatformSettings)
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.collections.immutable)
         }
 
         commonTest.dependencies {
+        }
+
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
 
         androidMain.dependencies {

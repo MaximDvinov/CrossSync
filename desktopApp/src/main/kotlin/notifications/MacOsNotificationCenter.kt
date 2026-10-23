@@ -182,51 +182,6 @@ private object MacOsNotificationBridge {
     }
 }
 
-/**
- * The first state snapshot is historical. Later active notifications create or replace a
- * popup, including a notification updated in place by its source application after an action.
- */
-internal class NotificationBannerCoordinator(
-    private val showPopup: (SyncedNotification) -> Unit,
-    private val hidePopup: (String) -> Unit,
-    private val notificationDelivery: () -> com.cross.sync.setting.domain.DesktopNotificationDelivery,
-) {
-    private val deliveredVersions = mutableMapOf<String, Long>()
-    private val systemNotificationCenter by lazy(::MacOsSystemNotificationCenter)
-    private var receivedInitialSnapshot = false
-
-    fun onNotificationsChanged(notifications: List<SyncedNotification>) {
-        val activeNotifications = notifications.filter(SyncedNotification::isActive)
-        // Ongoing notifications are rendered by the dedicated Live Update tray item.
-        // They must not also produce a regular macOS notification/popup on every update.
-        val deliveredNotifications = activeNotifications.filterNot(SyncedNotification::isLiveUpdate)
-        val activeIds = deliveredNotifications.mapTo(mutableSetOf()) { it.id }
-
-        if (receivedInitialSnapshot) {
-            deliveredVersions.keys
-                .filterNot(activeIds::contains)
-                .forEach(hidePopup)
-        }
-
-        if (receivedInitialSnapshot) {
-            val delivery = notificationDelivery()
-            deliveredNotifications
-                .filter { notification -> deliveredVersions[notification.id] != notification.updatedAt }
-                .forEach { notification ->
-                    if (delivery.showsSystem) systemNotificationCenter.publish(notification)
-                    if (delivery.showsPopup && MacOsPopupBridge.isSupported) showPopup(notification)
-                }
-        }
-
-        deliveredVersions.clear()
-        activeNotifications.forEach { notification -> deliveredVersions[notification.id] = notification.updatedAt }
-        receivedInitialSnapshot = true
-    }
-}
-
-private val SyncedNotification.id: String
-    get() = "$deviceId:$notificationKey"
-
 private object ObjectiveC {
     private val library = NativeLibrary.getInstance("objc")
     private val getSelector = library.getFunction("sel_registerName")

@@ -108,6 +108,22 @@ class NotificationRepositoryTest {
         }
     }
 
+    @Test
+    fun backgroundObservationExcludesArchivedPayloadsAndRetainsHistoryOnDisk() = runTest {
+        getRoomDatabase(Room.inMemoryDatabaseBuilder<AppDatabase>()).withRepository { repository ->
+            repeat(25) { index ->
+                repository.upsert(notification().copy(notificationKey = "archive-$index", body = "x".repeat(4096)))
+                repository.dismiss("phone", "archive-$index")
+            }
+            repository.upsert(notification())
+            assertEquals(listOf("message"), repository.observeActiveNotifications().first().map { it.notificationKey })
+            assertEquals(26, repository.observeNotifications().first().size)
+            repository.dismiss("phone", "message")
+            assertTrue(repository.observeActiveNotifications().first().isEmpty())
+            assertEquals(26, repository.observeNotifications().first().size)
+        }
+    }
+
     private suspend fun AppDatabase.withRepository(block: suspend (NotificationRepositoryImpl) -> Unit) {
         try {
             block(NotificationRepositoryImpl(getNotificationDao()))

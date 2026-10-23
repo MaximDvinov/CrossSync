@@ -13,8 +13,30 @@ kotlin {
     }
 
     jvm()
+    macosArm64()
 
+    applyDefaultHierarchyTemplate {
+        common {
+            group("desktop") {
+                withJvm()
+                group("macos") { withMacosArm64() }
+            }
+        }
+    }
     sourceSets {
+        val desktopMain by getting {
+            dependencies {
+                implementation(libs.ktor.server.core)
+                implementation(libs.ktor.server.websockets)
+                implementation(libs.ktor.server.content.negotiation)
+                implementation(libs.ktor.server.auth)
+            }
+        }
+        macosMain.dependencies {
+            implementation(libs.ktor.server.cio)
+            implementation(libs.ktor.client.darwin)
+        }
+
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
@@ -52,6 +74,10 @@ kotlin {
             implementation(libs.logback.classic)
             implementation(libs.ktor.server.auth.jwt)
             implementation(libs.slf4j.simple)
+        }
+        jvmTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

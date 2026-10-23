@@ -22,7 +22,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
-import com.cross.sync.clipboard.presentation.ClipboardSectionHeader
+import com.cross.sync.clipboard.domain.usecase.AddCopiedDataUseCase
+import com.cross.sync.clipboard.presentation.ClipboardViewModel
+import com.cross.sync.components.rememberScreenViewModel
 import com.cross.sync.clipboard.presentation.ClipboardScreen
 import com.cross.sync.notifications.presentation.NotificationScreen
 import com.cross.sync.setting.domain.SettingPreferencesStore
@@ -34,15 +36,17 @@ import com.cross.sync.theme.icons.LogoNoConnect
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
 import dev.nucleusframework.composenativetray.tray.api.Tray
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import tryRegisterGlobalHotkey
 import unregisterGlobalHotkeyIfRegistered
-import utils.bringAppToFront
 import utils.calculateWindowLocationUnderMouse
-import utils.getFrontmostAppBundleId
-import utils.pasteClipboardMac
+import utils.MacOsPaste
+import utils.MacPasteResult
 import java.awt.Dimension
-import java.awt.Window as AwtWindow
+import java.awt.EventQueue
 import org.koin.compose.koinInject
 
 @Composable
@@ -53,6 +57,7 @@ fun ApplicationScope.QuickClipboardWindow(
     pairingState: PairingState?,
 ) {
     val settingPreferencesStore = koinInject<SettingPreferencesStore>()
+    val copyToClipboard = koinInject<AddCopiedDataUseCase>()
     val density = LocalDensity.current
 
     val windowWidthDp = 350.dp
@@ -60,11 +65,27 @@ fun ApplicationScope.QuickClipboardWindow(
     var isTopBar by remember { mutableStateOf(false) }
     val windowState = rememberWindowState(width = windowWidthDp, height = windowHeightDp)
     var showWindow by remember { mutableStateOf(false) }
-    var awtWindow by remember { mutableStateOf<AwtWindow?>(null) }
+    var awtWindow by remember { mutableStateOf<java.awt.Window?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
 
-    var prevAppId by remember { mutableStateOf<String?>(null) }
+    var previousApplicationPid by remember { mutableStateOf<Int?>(null) }
+    var pasteJob by remember { mutableStateOf<Job?>(null) }
+    val hideWindow = {
+        showWindow = false
+        // Hide the AWT peer now: changing Compose state alone waits for recomposition.
+        awtWindow?.isVisible = false
+    }
+    val openWindow = {
+        pasteJob?.cancel()
+        previousApplicationPid = MacOsPaste.captureTarget()
+        showWindow = true
+    }
+    val closeWindow = {
+        pasteJob?.cancel()
+        hideWindow()
+        MacOsPaste.restoreFocus(previousApplicationPid)
+    }
     var quickAccessHistorySize by remember {
         mutableStateOf(settingPreferencesStore.getGeneralSettings().quickAccessHistorySize)
     }
@@ -72,7 +93,7 @@ fun ApplicationScope.QuickClipboardWindow(
     val openNotifications = {
         isTopBar = true
         quickAccessContent = QuickAccessContent.NOTIFICATIONS
-        showWindow = true
+        if (!showWindow) openWindow()
     }
 
     Tray(
@@ -82,8 +103,7 @@ fun ApplicationScope.QuickClipboardWindow(
         primaryAction = {
             isTopBar = true
             quickAccessContent = QuickAccessContent.CLIPBOARD
-            showWindow = !showWindow;
-            prevAppId = getFrontmostAppBundleId()
+            if (showWindow) closeWindow() else openWindow()
         },
         menuContent = {
             Item(
@@ -107,20 +127,19 @@ fun ApplicationScope.QuickClipboardWindow(
         }
     )
 
-    DisposableEffect(Unit) {
+    DisposableEffect(globalHotkeyManager) {
         val showClipboardContentAction = {
             isTopBar = false
             quickAccessContent = QuickAccessContent.CLIPBOARD
-            prevAppId = getFrontmostAppBundleId()
-            showWindow = !showWindow
+            if (showWindow) closeWindow() else openWindow()
         }
 
         val hideWindowAction = {
-            showWindow = false
+            EventQueue.invokeLater { if (showWindow) closeWindow() }
         }
 
         globalHotkeyManager.registerHotkey("meta shift V") {
-            showClipboardContentAction()
+            EventQueue.invokeLater { showClipboardContentAction() }
         }
 
         var escapeHotkeyRegistered = tryRegisterGlobalHotkey(onHotkey = hideWindowAction) { pressedKeys ->
@@ -144,6 +163,7 @@ fun ApplicationScope.QuickClipboardWindow(
 
         onDispose {
             permissionJob?.cancel()
+            pasteJob?.cancel()
             globalHotkeyManager.stop()
 
             if (escapeHotkeyRegistered) {
@@ -178,17 +198,19 @@ fun ApplicationScope.QuickClipboardWindow(
         }
     }
 
+    if (!showWindow) return
+
     Window(
         title = "CrossSync",
         state = windowState,
         visible = isWindowShowed,
         alwaysOnTop = true,
-        onCloseRequest = {
-            showWindow = false
-        },
+        onCloseRequest = closeWindow,
         undecorated = true,
-    transparent = true,
+        transparent = true,
     ) {
+        val clipboardViewModel = rememberScreenViewModel<ClipboardViewModel>()
+        DesktopUiResources.TrackWindow()
         val nativeWindow = this.window
         DisposableEffect(nativeWindow) {
             awtWindow = nativeWindow
@@ -205,6 +227,7 @@ fun ApplicationScope.QuickClipboardWindow(
                 Box {
                     when (quickAccessContent) {
                         QuickAccessContent.CLIPBOARD -> ClipboardScreen(
+                        viewModel = clipboardViewModel,
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
                             .border(
@@ -213,9 +236,7 @@ fun ApplicationScope.QuickClipboardWindow(
                                 androidx.compose.foundation.shape.RoundedCornerShape(20.dp)
                             )
                             .background(AppTheme.colors.background),
-                        onClose = {
-                            showWindow = false
-                        },
+                        onClose = closeWindow,
                         onOpenFullApp = openSetting,
                         onOpenHome = openHome,
                         onOpenNotifications = {
@@ -231,11 +252,17 @@ fun ApplicationScope.QuickClipboardWindow(
 //                                horizontalPadding = 10.dp
 //                            )
 //                        },
-                        onPaste = {
-                            coroutineScope.launch {
-                                showWindow = false
-                                prevAppId?.let { bringAppToFront(it) }
-                                pasteClipboardMac()
+                        onPaste = { data ->
+                            val target = previousApplicationPid
+                            pasteJob?.cancel()
+                            pasteJob = coroutineScope.launch {
+                                copyToClipboard(data.id)
+                                currentCoroutineContext().ensureActive()
+                                hideWindow()
+                                val result = MacOsPaste.paste(target)
+                                if (result != MacPasteResult.SENT) {
+                                    println("CrossSync: automatic paste skipped ($result); item remains in clipboard")
+                                }
                             }
                         }
                         )

@@ -21,6 +21,7 @@ kotlin {
             implementation(projects.shared.features.clipboard.domain)
         }
         commonMain.dependencies {
+            api(projects.shared.features.notifications.viewmodel)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.components.resources)
         }

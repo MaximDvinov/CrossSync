@@ -12,6 +12,7 @@ kotlin {
     }
 
     jvm()
+    macosArm64()
 
     sourceSets {
         commonMain.dependencies {
@@ -19,12 +20,11 @@ kotlin {
             implementation(libs.kotlinx.datetime)
 
             implementation(libs.koin.core)
-            implementation(libs.koin.compose)
-            implementation(libs.koin.compose.viewmodel)
 
             implementation(projects.shared.features.clipboard.data)
             implementation(projects.shared.core.db)
-            api(projects.shared.features.clipboard.presentation)
+            api(projects.shared.features.clipboard.viewmodel)
+            implementation(libs.koin.core.viewmodel)
             api(projects.shared.features.clipboard.domain)
         }
 

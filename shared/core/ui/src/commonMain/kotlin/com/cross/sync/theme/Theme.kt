@@ -17,21 +17,6 @@ import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import org.koin.compose.koinInject
 
-enum class AppThemeMode(
-    val label: String,
-) {
-    SYSTEM("System"),
-    LIGHT("Light"),
-    DARK("Dark");
-
-    fun next(): AppThemeMode = entries[(ordinal + 1) % entries.size]
-
-    companion object {
-        fun fromStoredValue(value: String): AppThemeMode =
-            entries.firstOrNull { it.name == value } ?: SYSTEM
-    }
-}
-
 private const val THEME_MODE_KEY = "setting.themeMode"
 private val themeModeState = mutableStateOf(AppThemeMode.SYSTEM)
 

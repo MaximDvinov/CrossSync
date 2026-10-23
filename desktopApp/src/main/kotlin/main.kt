@@ -1,3 +1,9 @@
+import notifications.MacOsSystemNotificationCenter
+import androidx.compose.runtime.DisposableEffect
+import com.cross.sync.clipboard.domain.usecase.InitClipboardManagerUseCase
+import com.cross.sync.syncing.domain.repository.ClipboardServer
+import com.cross.sync.syncing.runtime.DesktopRuntime
+import com.cross.sync.syncing.runtime.NotificationDeliveryCoordinator
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -16,31 +22,25 @@ import com.cross.sync.notifications.di.desktopNotificationModule
 import com.cross.sync.notifications.domain.usecase.ObserveNotificationsUseCase
 import com.cross.sync.notifications.domain.usecase.ClearNotificationHistoryUseCase
 import com.cross.sync.notifications.domain.entity.SyncedNotification
-import com.cross.sync.notifications.domain.entity.currentLiveUpdate
 import com.cross.sync.setting.domain.SettingPreferencesStore
 import com.cross.sync.syncing.di.syncingModule
 import com.cross.sync.syncing.domain.usecases.ObservePairingUseCase
 import com.cross.sync.syncing.domain.usecases.StartSyncUseCase
 import com.tulskiy.keymaster.common.Provider
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
-import kotlin.math.max
-import kotlin.time.Clock
 import utils.getInstalledApplications
 import windows.GeneralWindow
+import windows.DesktopUiResources
 import windows.GeneralWindowState
 import windows.HomeTab
 import windows.QuickClipboardWindow
 import windows.MacOsLiveUpdateChip
 import kotlin.time.ExperimentalTime
-import notifications.NotificationBannerCoordinator
 import notifications.MacOsLiveUpdateStatusItem
 import windows.MacOsNotificationPopup
 
@@ -51,7 +51,13 @@ val desktopModule = module {
 }
 
 @OptIn(ExperimentalTime::class, ExperimentalComposeUiApi::class)
-fun main() = application {
+fun main() {
+    DesktopUiResources.configureImageLoader()
+    crossSyncApplication()
+}
+
+@OptIn(ExperimentalTime::class, ExperimentalComposeUiApi::class)
+private fun crossSyncApplication() = application {
     KoinApplication({
         modules(
             desktopModule,
@@ -62,6 +68,8 @@ fun main() = application {
         )
     }) {
         val startSyncUseCase = koinInject<StartSyncUseCase>()
+        val clipboardServer = koinInject<ClipboardServer>()
+        val initClipboard = koinInject<InitClipboardManagerUseCase>()
         val observePairingUseCase = koinInject<ObservePairingUseCase>()
         val saveApplicationsUseCase = koinInject<SaveApplicationsUseCase>()
         val clearCopiedDataOlderThanUseCase = koinInject<ClearCopiedDataOlderThanUseCase>()
@@ -69,16 +77,13 @@ fun main() = application {
         val settingPreferencesStore = koinInject<SettingPreferencesStore>()
         val globalHotkeyManager = koinInject<GlobalHotkeyManager>()
         val observeNotificationsUseCase = koinInject<ObserveNotificationsUseCase>()
-        val notificationsFlow = remember(observeNotificationsUseCase) {
-            observeNotificationsUseCase()
-        }
-        val notifications by notificationsFlow.collectAsState(initial = emptyList())
+        var liveUpdateNotification by remember { mutableStateOf<SyncedNotification?>(null) }
         var generalWindowShowed by remember { mutableStateOf<GeneralWindowState?>(null) }
         var selectedHomeTab by remember { mutableStateOf(HomeTab.CLIPBOARD) }
         var popupNotifications by remember { mutableStateOf<List<SyncedNotification>>(emptyList()) }
         val notificationBannerCoordinator = remember {
-            NotificationBannerCoordinator(
-                showPopup = { notification ->
+            NotificationDeliveryCoordinator(
+                popup = { notification ->
                     popupNotifications = popupNotifications
                         .filterNot { current ->
                             current.deviceId == notification.deviceId &&
@@ -86,14 +91,16 @@ fun main() = application {
                         }
                         .plus(notification)
                 },
-                hidePopup = { id ->
+                hide = { id ->
                     popupNotifications = popupNotifications.filterNot {
                         "${it.deviceId}:${it.notificationKey}" == id
                     }
                 },
-                notificationDelivery = {
+                delivery = {
                     settingPreferencesStore.getGeneralSettings().desktopNotificationDelivery
                 },
+                system = { MacOsSystemNotificationCenter().publish(it) },
+                liveUpdate = { liveUpdateNotification = it },
             )
         }
 
@@ -112,15 +119,15 @@ fun main() = application {
             }
         }
 
-        LaunchedEffect(Unit) {
-            startSyncUseCase().collect {  }
+        val desktopRuntime = remember {
+            DesktopRuntime(clipboardServer, initClipboard, startSyncUseCase,
+                clearCopiedDataOlderThanUseCase, clearNotificationHistoryUseCase,
+                settingPreferencesStore, observeNotificationsUseCase, notificationBannerCoordinator)
         }
-
-        LaunchedEffect(notifications, notificationBannerCoordinator) {
-            notificationBannerCoordinator.onNotificationsChanged(notifications)
+        DisposableEffect(desktopRuntime) {
+            desktopRuntime.start()
+            onDispose { desktopRuntime.close() }
         }
-
-        val liveUpdateNotification = notifications.currentLiveUpdate()
 
         LaunchedEffect(
             liveUpdateNotification?.deviceId,
@@ -128,42 +135,6 @@ fun main() = application {
             liveUpdateNotification?.kind,
         ) {
             showLiveUpdateChip = liveUpdateNotification != null
-        }
-
-        LaunchedEffect(Unit) {
-            launch(Dispatchers.Default) {
-                while (true) {
-                    val days = max(
-                        settingPreferencesStore.getGeneralSettings().clipboardAutoClearTimeoutDays,
-                        1
-                    )
-                    val olderThanEpochMillis =
-                        Clock.System.now().toEpochMilliseconds() - days * MILLIS_IN_DAY
-                    val notificationHistoryDays = max(
-                        settingPreferencesStore.getGeneralSettings().notificationHistoryRetentionDays,
-                        1,
-                    )
-                    val notificationHistoryCutoff =
-                        Clock.System.now().toEpochMilliseconds() - notificationHistoryDays * MILLIS_IN_DAY
-
-                    try {
-                        clearCopiedDataOlderThanUseCase(olderThanEpochMillis)
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        // A failed cleanup must not stop syncing.
-                    }
-                    try {
-                        clearNotificationHistoryUseCase.before(notificationHistoryCutoff)
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        // A failed cleanup must not stop syncing.
-                    }
-
-                    delay(AUTO_CLEAR_CHECK_INTERVAL_MILLIS)
-                }
-            }
         }
 
         QuickClipboardWindow(
@@ -211,6 +182,3 @@ fun main() = application {
         }
     }
 }
-
-private const val MILLIS_IN_DAY = 24L * 60L * 60L * 1000L
-private const val AUTO_CLEAR_CHECK_INTERVAL_MILLIS = 60L * 60L * 1000L

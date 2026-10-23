@@ -120,13 +120,13 @@ fun DeviceSetting(
                             is PairingState.QrCodeGenerated -> 4
                         }
                     }) {
-                        when (state.pairingState) {
+                        when (val pairingState = state.pairingState) {
                             is PairingState.QrCodeGenerated -> {
-                                QrCodeGenerated(state.pairingState, onAddDevice)
+                                QrCodeGenerated(pairingState, onAddDevice)
                             }
 
                             is PairingState.Connected -> {
-                                Connected(state.pairingState, onCancel)
+                                Connected(pairingState, onCancel)
                             }
 
                             is PairingState.Error -> {}
@@ -261,4 +261,3 @@ fun DeviceItem(
         )
     }
 }
-

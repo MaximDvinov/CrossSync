@@ -35,14 +35,14 @@ import com.cross.sync.components.button.RoundedTextButton
 import com.cross.sync.notifications.domain.entity.SyncedNotification
 import com.cross.sync.theme.AppTheme
 import com.cross.sync.theme.icons.ArrowLeft
-import org.koin.compose.koinInject
+import com.cross.sync.components.rememberScreenViewModel
 
 @Composable
 fun NotificationScreen(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     compact: Boolean = false,
-    viewModel: NotificationViewModel = koinInject(),
+    viewModel: NotificationViewModel = rememberScreenViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
 

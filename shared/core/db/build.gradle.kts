@@ -14,14 +14,19 @@ kotlin {
     }
 
     jvm()
+    macosArm64()
 
     sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+        }
         commonMain.dependencies {
+            implementation(libs.androidx.sqlite.bundled)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.datetime)
 
             api(libs.androidx.room.runtime)
-            implementation(libs.androidx.sqlite.bundled)
 
 //            implementation("com.oldguy:kmp-sqlencrypt:0.9.0")
 
@@ -43,6 +48,7 @@ kotlin {
 dependencies {
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspJvm", libs.androidx.room.compiler)
+    add("kspMacosArm64", libs.androidx.room.compiler)
 }
 
 room {

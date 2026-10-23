@@ -12,6 +12,7 @@ kotlin {
         androidResources.enable = true
     }
     jvm()
+    macosArm64()
 
     sourceSets {
         jvmTest.dependencies {

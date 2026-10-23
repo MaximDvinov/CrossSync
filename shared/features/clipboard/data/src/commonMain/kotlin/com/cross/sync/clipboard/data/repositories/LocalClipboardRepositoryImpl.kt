@@ -61,9 +61,13 @@ class LocalClipboardRepositoryImpl(
         categoryDao.insert(CategoryCopiedDataCrossRef(categoryId, copiedDataId))
     }
 
+    override suspend fun moveCopiedDataToCategory(copiedDataId: Long, fromCategoryId: Long?, toCategoryId: Long) {
+        categoryDao.moveBinding(copiedDataId, fromCategoryId, toCategoryId)
+    }
+
     override suspend fun clearAllCopiedDataInCategory(categoryId: Long?) {
         if (categoryId != null) {
-            categoryDao.getAllCopiedByCategoryData(categoryId).copiedDataList.forEach {
+            categoryDao.getAllCopiedByCategoryData(categoryId)?.copiedDataList.orEmpty().forEach {
                 clipboardDao.deleteById(it.copiedDataId)
             }
         } else {
@@ -93,7 +97,7 @@ class LocalClipboardRepositoryImpl(
     override fun observeCopiedDataByCategory(categoryId: Long): Flow<List<CopiedData>> {
         return categoryDao.getAllCopiedByCategoryDataFlow(categoryId)
             .map {
-                it.copiedDataList.map { entity -> entity.toDomain() }
+                it?.copiedDataList.orEmpty().map { entity -> entity.toDomain() }
                     .sortedByDescending { entity -> entity.dateTime }
             }
     }

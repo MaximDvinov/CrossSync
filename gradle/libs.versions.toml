@@ -84,6 +84,9 @@ androidx-activityCompose = { module = "androidx.activity:activity-compose", vers
 htmlconverter = { module = "be.digitalia.compose.htmlconverter:htmlconverter", version.ref = "htmlconverter" }
 
 # AndroidX - Lifecycle
+androidx-lifecycle-viewmodelCore = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "compose-multiplatform-lifecycle" }
+koin-core-viewmodel = { module = "io.insert-koin:koin-core-viewmodel", version.ref = "koin" }
+ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 androidx-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "compose-multiplatform-lifecycle" }
 androidx-lifecycle-runtime = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "compose-multiplatform-lifecycle" }
 
