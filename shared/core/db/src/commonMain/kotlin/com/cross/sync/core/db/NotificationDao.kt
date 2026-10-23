@@ -35,6 +35,9 @@ interface NotificationDao {
     @Query("SELECT * FROM synced_notifications ORDER BY isActive DESC, updatedAt DESC")
     fun observeAll(): Flow<List<SyncedNotificationEntity>>
 
+    @Query("SELECT * FROM synced_notifications WHERE isActive = 1 ORDER BY updatedAt DESC")
+    fun observeActive(): Flow<List<SyncedNotificationEntity>>
+
     @Query("UPDATE synced_notifications SET isActive = 0, updatedAt = :updatedAt WHERE deviceId = :deviceId AND notificationKey = :notificationKey")
     suspend fun markRemoved(deviceId: String, notificationKey: String, updatedAt: Long)
 

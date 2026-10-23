@@ -71,7 +71,6 @@ import crosssync.shared.features.notifications.presentation.generated.resources.
 import crosssync.shared.features.notifications.presentation.generated.resources.ic_notification_send
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
-import org.koin.compose.koinInject
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -456,14 +455,14 @@ fun NotificationPopupCard(
     onDismiss: () -> Unit,
     onReplyRequested: () -> Unit,
     onInteraction: () -> Unit = {},
-    viewModel: NotificationViewModel = koinInject(),
+    viewModel: NotificationViewModel,
     compact: Boolean = true,
     showFullText: Boolean = true,
     initiallyExpanded: Boolean = true,
     animateExpansion: Boolean = false,
     showBackground: Boolean = true,
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.actions.collectAsState()
     val actionKey = "${notification.deviceId}:${notification.notificationKey}"
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         NotificationCard(

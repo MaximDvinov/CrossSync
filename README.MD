@@ -10,6 +10,7 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
 
 ## Current Features
 - macOS desktop app (Compose Desktop + system tray + quick-access window).
+- Native macOS 26+ app (SwiftUI on Apple Silicon, shared Kotlin ViewModels).
 - Android client (Compose) with QR-based pairing to Mac.
 - Local clipboard history with categories.
 - Support for text, formatted text (HTML/RTF), images, and files in local clipboard history.
@@ -28,7 +29,9 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
 - Gradle Wrapper 9.1.0
 
 ## Module Structure
-- `desktopApp` - macOS desktop client.
+- `desktopApp` - Compose Desktop client.
+- `macosApp` - native SwiftUI client for macOS 26+ on Apple Silicon.
+- `shared/macos` - Kotlin/Native framework for the SwiftUI client.
 - `androidApp` - Android client.
 - `landing` - Kobweb landing page (GitHub Pages ready).
 - `shared` - shared business logic and feature/data/domain modules.
@@ -52,7 +55,7 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
 ## Build Instructions
 
 ### Requirements
-- JDK 17
+- JDK 21 for the desktop target (including the JVM bundled in macOS packages)
 - Android SDK installed (`local.properties` with `sdk.dir=...`)
 - macOS for running the desktop target
 
@@ -70,6 +73,14 @@ CrossSync is a Kotlin Multiplatform project for clipboard synchronization betwee
    ./gradlew :desktopApp:packageDmg
    ```
    Output: `desktopApp/build/compose/binaries/main/dmg/`.
+
+### Native SwiftUI app for macOS 26+
+
+```bash
+bash macosApp/scripts/package.sh
+```
+
+Apple Silicon only. Open `macosApp/CrossSync.xcodeproj` to run from Xcode. Build prerequisites, architecture, separate storage and validation are described in [macosApp/README.md](macosApp/README.md).
 
 ### Build for Android
 1. Debug APK:

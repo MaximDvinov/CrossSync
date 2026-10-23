@@ -1,5 +1,7 @@
 package com.cross.sync.setting.domain
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import com.russhwolf.settings.Settings
 import com.russhwolf.settings.get
 import com.russhwolf.settings.set
@@ -40,6 +42,11 @@ data class GeneralSettingsPreferences(
 class SettingPreferencesStore(
     private val settings: Settings
 ) {
+    private val general by lazy { MutableStateFlow(getGeneralSettings()) }
+    private val excluded by lazy { MutableStateFlow(getExcludedApplicationIds()) }
+    fun observeGeneralSettings(): StateFlow<GeneralSettingsPreferences> = general
+    fun observeExcludedApplications(): StateFlow<Set<String>> = excluded
+
     fun getGeneralSettings(): GeneralSettingsPreferences {
         return GeneralSettingsPreferences(
             launchAtSystemStartup = settings[KEY_LAUNCH_AT_SYSTEM_STARTUP, false],
@@ -65,40 +72,49 @@ class SettingPreferencesStore(
 
     fun setLaunchAtSystemStartup(enabled: Boolean) {
         settings[KEY_LAUNCH_AT_SYSTEM_STARTUP] = enabled
+        general.value = getGeneralSettings()
     }
 
     fun setLocalization(localization: String) {
         settings[KEY_LOCALIZATION] = localization
+        general.value = getGeneralSettings()
     }
 
     fun setThemeMode(themeMode: String) {
         settings[KEY_THEME_MODE] = themeMode
+        general.value = getGeneralSettings()
     }
 
     fun setClipboardAutoClearTimeoutDays(days: Int) {
         settings[KEY_AUTO_CLEAR_DAYS] = days
+        general.value = getGeneralSettings()
     }
 
     fun setQuickAccessHistorySize(size: Int) {
         settings[KEY_QUICK_ACCESS_HISTORY_SIZE] = size
+        general.value = getGeneralSettings()
     }
 
     fun setNotificationSyncEnabled(enabled: Boolean) {
         settings[KEY_NOTIFICATION_SYNC_ENABLED] = enabled
+        general.value = getGeneralSettings()
     }
 
     fun setNotificationContentEnabled(enabled: Boolean) {
         settings[KEY_NOTIFICATION_CONTENT_ENABLED] = enabled
+        general.value = getGeneralSettings()
     }
 
     fun setNotificationHistoryRetentionDays(days: Int) {
         settings[KEY_NOTIFICATION_HISTORY_RETENTION_DAYS] = days
+        general.value = getGeneralSettings()
     }
 
     fun setDesktopNotificationDelivery(delivery: DesktopNotificationDelivery) {
         settings[KEY_DESKTOP_NOTIFICATION_DELIVERY] = delivery.name
         // Keep the old flag in sync for installations upgraded from earlier builds.
         settings[KEY_DESKTOP_NOTIFICATION_BANNERS_ENABLED] = delivery != DesktopNotificationDelivery.OFF
+        general.value = getGeneralSettings()
     }
 
     fun getExcludedApplicationIds(): Set<String> {
@@ -118,6 +134,7 @@ class SettingPreferencesStore(
             .distinct()
             .sorted()
             .joinToString(EXCLUDED_SEPARATOR)
+        excluded.value = getExcludedApplicationIds()
     }
 
     fun addExcludedApplicationId(applicationId: String) {

@@ -2,12 +2,12 @@ package com.cross.sync.setting.presentation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import org.koin.compose.koinInject
+import com.cross.sync.components.rememberScreenViewModel
 
 @Composable
 expect fun SettingScreen(
     modifier: Modifier,
-    viewModel: SettingViewModel = koinInject(),
+    viewModel: SettingViewModel = rememberScreenViewModel(),
     onBack: () -> Unit,
     onOpenConnection: () -> Unit
 )

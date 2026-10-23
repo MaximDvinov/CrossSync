@@ -11,6 +11,7 @@ kotlin {
         androidResources.enable = true
     }
     jvm()
+    macosArm64()
 
     sourceSets {
         commonMain.dependencies {
@@ -23,8 +24,8 @@ kotlin {
         androidMain.dependencies { implementation(libs.kotlinx.coroutines.android) }
         jvmMain.dependencies {
             implementation(libs.koin.compose)
-            implementation(libs.koin.compose.viewmodel)
-            implementation(projects.shared.features.notifications.presentation)
+            implementation(libs.koin.core.viewmodel)
+            implementation(projects.shared.features.notifications.viewmodel)
         }
     }
 }

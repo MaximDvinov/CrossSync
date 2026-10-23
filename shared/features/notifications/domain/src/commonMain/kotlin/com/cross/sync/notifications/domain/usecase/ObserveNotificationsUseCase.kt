@@ -6,4 +6,5 @@ class ObserveNotificationsUseCase(
     private val repository: NotificationRepository,
 ) {
     operator fun invoke() = repository.observeNotifications()
+    fun active() = repository.observeActiveNotifications()
 }

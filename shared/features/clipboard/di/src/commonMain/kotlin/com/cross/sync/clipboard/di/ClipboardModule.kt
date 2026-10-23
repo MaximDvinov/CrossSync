@@ -29,11 +29,11 @@ import com.cross.sync.clipboard.domain.usecase.SaveApplicationsUseCase
 import com.cross.sync.clipboard.presentation.ClipboardViewModel
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
-import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
-val clipboardModule: Module = module {
+val clipboardModule: Module get() = module {
     includes(databaseModule)
 
     singleOf(::SystemClipboardRepositoryImpl) bind SystemClipboardRepository::class
@@ -62,5 +62,5 @@ val clipboardModule: Module = module {
     singleOf(::GetApplicationsUseCase)
     singleOf(::SaveApplicationsUseCase)
 
-    viewModelOf(::ClipboardViewModel)
+    viewModel { ClipboardViewModel(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 }

@@ -44,19 +44,19 @@ import com.cross.sync.components.dragAndDrop.dropTarget
 import com.cross.sync.components.dragAndDrop.rememberDragAndDropState
 import com.cross.sync.theme.AppTheme
 import kotlinx.coroutines.delay
-import org.koin.compose.koinInject
+import com.cross.sync.components.rememberScreenViewModel
 import kotlin.uuid.ExperimentalUuidApi
 
 @Suppress("NonSkippableComposable")
 @Composable
 fun ClipboardScreen(
     modifier: Modifier,
-    viewModel: ClipboardViewModel = koinInject(),
+    viewModel: ClipboardViewModel = rememberScreenViewModel(),
     onClose: (() -> Unit)? = null,
     onOpenFullApp: (() -> Unit)? = null,
     onOpenHome: (() -> Unit)? = null,
     onOpenNotifications: (() -> Unit)? = null,
-    onPaste: (() -> Unit)? = null,
+    onPaste: ((CopiedDataStable) -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     isLargeControls: Boolean = true,
     maxVisibleItems: Int? = null,
@@ -123,7 +123,7 @@ fun ClipboardScreen(
 
                     CopiedDataList(
                         copiedDataList = state.copiedDataList,
-                        onPaste = onPaste ?: {},
+                        onPaste = onPaste ?: viewModel::addCopiedData,
                         currentCategory = state.selectedCategory,
                         onAddCopiedData = viewModel::addCopiedData,
                         onDelete = viewModel::deleteCopiedData,
@@ -231,7 +231,7 @@ fun CategoryBar(
 @Composable
 fun CopiedDataList(
     copiedDataList: List<CopiedDataStable>,
-    onPaste: () -> Unit,
+    onPaste: (CopiedDataStable) -> Unit,
     currentCategory: CategoryStable?,
     onAddCopiedData: (CopiedDataStable) -> Unit,
     onDelete: (CopiedDataStable) -> Unit,
@@ -300,8 +300,7 @@ fun CopiedDataList(
                         onAddCopiedData(copiedData)
                     },
                     onDoubleClick = {
-                        onAddCopiedData(copiedData)
-                        onPaste()
+                        onPaste(copiedData)
                     },
                     onDeleteClick = {
                         onDelete(copiedData)

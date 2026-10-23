@@ -46,6 +46,7 @@ fun ApplicationScope.GeneralWindow(
             undecorated = true,
             transparent = true,
         ) {
+            DesktopUiResources.TrackWindow()
             var currentScreen by remember { mutableStateOf(generalWindowState) }
             var openedFromGeneral by remember { mutableStateOf(generalWindowState == GeneralWindowState.GENERAL) }
             var selectedHomeTab by remember { mutableStateOf(initialHomeTab) }

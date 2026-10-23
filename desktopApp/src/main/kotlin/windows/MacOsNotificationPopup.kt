@@ -53,6 +53,8 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import com.cross.sync.notifications.domain.entity.SyncedNotification
+import com.cross.sync.components.rememberScreenViewModel
+import com.cross.sync.notifications.presentation.NotificationViewModel
 import com.cross.sync.notifications.presentation.NotificationPopupCard
 import com.cross.sync.theme.AppTheme
 import java.awt.Dimension
@@ -67,6 +69,8 @@ fun ApplicationScope.MacOsNotificationPopup(
     onDismiss: (SyncedNotification) -> Unit,
     onDismissAll: () -> Unit,
 ) {
+    // Commands must survive dismissal of an individual notification card.
+    val notificationViewModel = rememberScreenViewModel<NotificationViewModel>()
     // Keep the last content and its measurements until the exit finishes.
     var displayedNotifications by remember { mutableStateOf(notifications) }
     val visibility = remember { MutableTransitionState(false) }
@@ -128,6 +132,8 @@ fun ApplicationScope.MacOsNotificationPopup(
         }
     }
 
+    if (displayedNotifications.isEmpty()) return
+
     Window(
         onCloseRequest = onDismissAll,
         state = windowState,
@@ -137,6 +143,7 @@ fun ApplicationScope.MacOsNotificationPopup(
         transparent = true,
         resizable = false,
     ) {
+        DesktopUiResources.TrackWindow()
         val awtWindow = window
         DisposableEffect(awtWindow) {
             nativeWindow = awtWindow
@@ -243,6 +250,7 @@ fun ApplicationScope.MacOsNotificationPopup(
                                             .graphicsLayer { alpha = cardOpacity.value },
                                     ) {
                                         NotificationPopupCard(
+                                            viewModel = notificationViewModel,
                                             notification = notification,
                                             onDismiss = { onDismiss(notification) },
                                             onReplyRequested = {

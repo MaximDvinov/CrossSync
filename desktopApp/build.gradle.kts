@@ -23,8 +23,23 @@ plugins {
 
 val appVersion = providers.gradleProperty("appVersion").orElse("1.5.1").get()
 
+kotlin {
+    jvmToolchain(21)
+}
+
+val desktopJavaLauncher = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(21))
+}
+
 val desktopMainClass = "MainKt"
 val desktopJvmArgs = listOf(
+    // This is a tray utility: JVM ergonomics otherwise allow a heap of several GB.
+    "-Xms32m",
+    "-Xmx512m",
+    "-XX:+UseG1GC",
+    "-XX:MinHeapFreeRatio=10",
+    "-XX:MaxHeapFreeRatio=20",
+    "-XX:G1PeriodicGCInterval=60000",
     "-Dapple.awt.UIElement=true",
     "-Dskiko.gpu.resourceCacheLimit=50",
     "-Djava.net.preferIPv4Stack=true"
@@ -90,20 +105,15 @@ abstract class RunDetachedTask : DefaultTask() {
     @get:Internal
     abstract val workingDir: DirectoryProperty
 
+    @get:InputFile
+    abstract val javaExecutable: RegularFileProperty
+
     @TaskAction
     fun runDetached() {
         val runtimeClasspath = classpath.files.joinToString(File.pathSeparator) { it.absolutePath }
 
-        val javaHome = File(System.getProperty("java.home"))
-        val javaCandidate = File(javaHome, "bin/java")
-        val javaExec = when {
-            javaCandidate.exists() -> javaCandidate
-            File(javaCandidate.absolutePath + ".exe").exists() -> File(javaCandidate.absolutePath + ".exe")
-            else -> error("Cannot find java executable under java.home: $javaHome")
-        }
-
         val cmd = buildList {
-            add(javaExec.absolutePath)
+            add(javaExecutable.get().asFile.absolutePath)
             addAll(jvmArgs.get())
             addAll(listOf("-cp", runtimeClasspath, mainClass.get()))
         }
@@ -123,10 +133,13 @@ dependencies {
     implementation(libs.composeIcons.feather)
     implementation(libs.koin.core)
     implementation(libs.koin.compose)
+    implementation(libs.coil.compose)
 
     implementation(projects.shared.features.clipboard.data)
     implementation(projects.shared.features.clipboard.di)
+    implementation(projects.shared.features.clipboard.presentation)
     implementation(projects.shared.features.syncing.di)
+    implementation(projects.shared.features.syncing.runtime)
     implementation(projects.shared.features.setting.di)
     implementation(projects.shared.features.notifications.di)
     implementation(projects.shared.features.notifications.domain)
@@ -139,11 +152,13 @@ dependencies {
 
     implementation(libs.dd.plist)
     testImplementation(kotlin("test"))
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 compose.desktop {
     application {
         mainClass = desktopMainClass
+        javaHome = desktopJavaLauncher.get().metadata.installationPath.asFile.absolutePath
 
         jvmArgs += desktopJvmArgs
         buildTypes.release.proguard {
@@ -184,6 +199,7 @@ tasks.register<RunDetachedTask>("runDetached") {
     dependsOn(tasks.named("classes"), tasks.named("prepareAppResources"))
     classpath.from(configurations.getByName("runtimeClasspath"))
     mainClass.set(desktopMainClass)
+    javaExecutable.set(desktopJavaLauncher.map { it.executablePath })
     jvmArgs.set(
         desktopJvmArgs +
             "-Dcompose.application.resources.dir=${layout.buildDirectory.dir("compose/tmp/prepareAppResources").get().asFile.absolutePath}",

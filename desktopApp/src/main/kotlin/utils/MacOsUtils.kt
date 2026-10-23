@@ -8,16 +8,6 @@ import toBufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 
-fun pasteClipboardMac() {
-    Runtime.getRuntime().exec(
-        arrayOf(
-            "osascript",
-            "-e",
-            "tell application \"System Events\" to keystroke \"v\" using command down"
-        )
-    )
-}
-
 fun getFrontmostAppBundleId(): String? {
     val process = Runtime.getRuntime().exec(
         arrayOf(

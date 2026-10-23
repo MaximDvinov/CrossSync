@@ -17,6 +17,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            api(projects.shared.features.clipboard.viewmodel)
             implementation(libs.runtime)
             implementation(libs.ui)
             implementation(libs.foundation)

@@ -1,6 +1,7 @@
 package com.cross.sync.setting.di
 
 import com.cross.sync.setting.domain.DesktopAutoStartManager
+import com.cross.sync.setting.domain.JvmDesktopAutoStartManager
 import com.cross.sync.setting.domain.SettingPreferencesStore
 import com.cross.sync.setting.presentation.DesktopSettingViewModel
 import com.cross.sync.setting.presentation.SettingViewModel
@@ -14,7 +15,7 @@ import org.koin.dsl.module
 actual val settingModule: Module = module {
     singleOf(::AddDeviceUseCase)
     singleOf(::SettingPreferencesStore)
-    singleOf(::DesktopAutoStartManager)
+    singleOf(::JvmDesktopAutoStartManager) bind DesktopAutoStartManager::class
 
     viewModelOf(::DesktopSettingViewModel) bind SettingViewModel::class
 }

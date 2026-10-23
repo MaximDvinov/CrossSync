@@ -34,6 +34,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime)
 
             implementation(projects.shared.features.clipboard.di)
+            implementation(projects.shared.features.clipboard.presentation)
             implementation(projects.shared.features.syncing.di)
             implementation(projects.shared.features.setting.di)
             implementation(projects.shared.features.notifications.di)

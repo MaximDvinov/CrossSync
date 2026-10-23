@@ -1,6 +1,68 @@
 import Foundation
 import AppKit
 import UserNotifications
+import ApplicationServices
+
+// These calls share AppKit's main queue with AWT's native windows.
+private func onAppKitMain<T>(_ action: () -> T) -> T {
+    if Thread.isMainThread { return action() }
+    return DispatchQueue.main.sync(execute: action)
+}
+
+@_cdecl("crosssync_clipboard_change_count")
+public func crosssync_clipboard_change_count() -> Int64 {
+    onAppKitMain { autoreleasepool { Int64(NSPasteboard.general.changeCount) } }
+}
+
+@_cdecl("crosssync_frontmost_application_pid")
+public func crosssync_frontmost_application_pid() -> Int32 {
+    onAppKitMain {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              !app.isTerminated else { return 0 }
+        return app.processIdentifier
+    }
+}
+
+@_cdecl("crosssync_activate_application")
+public func crosssync_activate_application(_ pid: Int32) -> Int32 {
+    onAppKitMain {
+        guard pid > 0, pid != ProcessInfo.processInfo.processIdentifier,
+              let app = NSRunningApplication(processIdentifier: pid),
+              !app.isTerminated else { return 0 }
+        return app.activate(options: []) ? 1 : 0
+    }
+}
+
+private func canPaste(into pid: Int32) -> Bool {
+    guard pid > 0, pid != ProcessInfo.processInfo.processIdentifier,
+          NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else { return false }
+    let modifiers: CGEventFlags = [.maskCommand, .maskShift, .maskControl, .maskAlternate]
+    return CGEventSource.flagsState(.hidSystemState).intersection(modifiers).isEmpty
+}
+
+@_cdecl("crosssync_can_paste")
+public func crosssync_can_paste(_ pid: Int32) -> Int32 {
+    onAppKitMain { canPaste(into: pid) ? 1 : 0 }
+}
+
+// 1 = sent, 0 = focus/keys are not ready, -1 = permission missing, -2 = event creation failed.
+@_cdecl("crosssync_post_paste")
+public func crosssync_post_paste(_ pid: Int32) -> Int32 {
+    onAppKitMain {
+        guard AXIsProcessTrusted() else { return -1 }
+        guard canPaste(into: pid) else { return 0 }
+        guard let source = CGEventSource(stateID: .privateState),
+              let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else { return -2 }
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        // Address the captured process so a last-moment focus change cannot paste elsewhere.
+        down.postToPid(pid)
+        up.postToPid(pid)
+        return 1
+    }
+}
 
 public typealias CrossSyncLiveUpdateAction = @convention(c) () -> Void
 

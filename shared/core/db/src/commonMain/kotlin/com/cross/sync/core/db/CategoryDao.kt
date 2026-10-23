@@ -24,21 +24,39 @@ interface CategoryDao {
 
     @Transaction
     @Query("SELECT * FROM category WHERE categoryId = :id LIMIT 1")
-    fun getAllCopiedByCategoryDataFlow(id: Long): Flow<CategoryWithCopiedData>
+    fun getAllCopiedByCategoryDataFlow(id: Long): Flow<CategoryWithCopiedData?>
 
     @Transaction
     @Query("SELECT * FROM category WHERE  categoryId = :id LIMIT 1")
-    suspend fun getAllCopiedByCategoryData(id: Long): CategoryWithCopiedData
+    suspend fun getAllCopiedByCategoryData(id: Long): CategoryWithCopiedData?
 
     @Query("SELECT * FROM category")
     fun getAllCategories(): Flow<List<CategoryEntity>>
 
+    @Query("DELETE FROM CategoryCopiedDataCrossRef WHERE categoryId = :id")
+    suspend fun removeCategoryBindings(id: Long)
+
     @Query("DELETE FROM category WHERE categoryId = :id")
-    suspend fun deleteById(id: Long)
+    suspend fun deleteCategoryRow(id: Long)
+
+    @Transaction
+    suspend fun deleteById(id: Long) {
+        removeCategoryBindings(id)
+        deleteCategoryRow(id)
+    }
 
     @Query("DELETE FROM category")
     suspend fun deleteAll()
 
     @Insert(onConflict = IGNORE)
     suspend fun insert(copiedData: CategoryCopiedDataCrossRef)
+
+    @Query("DELETE FROM CategoryCopiedDataCrossRef WHERE copiedDataId = :copiedDataId AND categoryId = :categoryId")
+    suspend fun removeBinding(copiedDataId: Long, categoryId: Long)
+
+    @Transaction
+    suspend fun moveBinding(copiedDataId: Long, fromCategoryId: Long?, toCategoryId: Long) {
+        if (fromCategoryId != null && fromCategoryId != toCategoryId) removeBinding(copiedDataId, fromCategoryId)
+        insert(CategoryCopiedDataCrossRef(toCategoryId, copiedDataId))
+    }
 }

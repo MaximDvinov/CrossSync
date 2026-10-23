@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import utils.getFrontmostAppBundleId
+import utils.MacOsClipboardRevision
 import java.awt.Image
 import java.awt.Toolkit
 import java.awt.datatransfer.Clipboard
@@ -25,6 +26,7 @@ import java.io.File
 import java.io.InputStream
 import java.nio.charset.Charset
 import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.imageio.ImageIO
 import javax.swing.SwingUtilities
 import javax.swing.text.BadLocationException
@@ -50,16 +52,32 @@ class DesktopClipboardManager(
     }
 
     private fun cachePut(hash: Long, value: CopiedData) {
-        synchronized(savedCopiedDataLock) { savedCopiedData[hash] = value }
+        synchronized(savedCopiedDataLock) {
+            savedCopiedData[hash] = value
+            // Entry count alone allows hundreds of multi-megabyte HTML/RTF payloads.
+            while (savedCopiedData.values.sumOf(::estimatedPayloadBytes) > 8L * 1024 * 1024) {
+                savedCopiedData.remove(savedCopiedData.keys.first())
+            }
+        }
+    }
+
+    private fun estimatedPayloadBytes(data: CopiedData): Long = when (data) {
+        is CopiedData.Text -> data.text.length * 2L
+        is CopiedData.FormattedText -> (data.text.length.toLong() + data.plainText.length) * 2L
+        is CopiedData.Image -> data.imagePath.length * 2L
+        is CopiedData.File -> data.filePaths.sumOf { it.length * 2L }
     }
 
     private fun cacheGet(hash: Long): CopiedData? =
         synchronized(savedCopiedDataLock) { savedCopiedData[hash] }
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private val pollingStarted = AtomicBoolean(false)
+    private val snapshotReader = ClipboardSnapshotReader(MacOsClipboardRevision::current)
     val flow: MutableStateFlow<CopiedData?> = MutableStateFlow(null)
 
     override fun init(): StateFlow<CopiedData?> {
+        if (!pollingStarted.compareAndSet(false, true)) return flow
         coroutineScope.launch {
             var lastData: CopiedData? = getData()
             flow.update { lastData }
@@ -190,6 +208,10 @@ class DesktopClipboardManager(
 
     @OptIn(ExperimentalTime::class)
     override suspend fun getData(): CopiedData? {
+        return snapshotReader.read { readClipboard() }
+    }
+
+    private fun readClipboard(): CopiedData? {
         return try {
             var result: CopiedData? = null
             SwingUtilities.invokeAndWait {
@@ -321,7 +343,7 @@ class DesktopClipboardManager(
                     null
                 }
                 if (stream != null) {
-                    val bytes = stream.readBytes()
+                    val bytes = stream.use { it.readBytes() }
                     val raw = String(bytes, Charsets.UTF_8)
                     formattedRaw = raw
                     plainNormalized = htmlUnescape(stripHtmlToPlain(raw))
@@ -335,7 +357,7 @@ class DesktopClipboardManager(
                 }
                 if (stream != null) {
                     // read raw bytes once
-                    val bytes = stream.readBytes()
+                    val bytes = stream.use { it.readBytes() }
                     // try robust RTF parsing to plain
                     val plain = rtfStreamToPlain(ByteArrayInputStream(bytes))
                         ?: rtfFallbackToPlain(String(bytes, Charset.forName("windows-1251")))
@@ -667,7 +689,7 @@ private fun rtfStreamToPlain(stream: InputStream): String? {
     return try {
         val kit = RTFEditorKit()
         val doc = kit.createDefaultDocument()
-        val bytes = stream.readBytes()
+        val bytes = stream.use { it.readBytes() }
         ByteArrayInputStream(bytes).use { bais -> kit.read(bais, doc, 0) }
         try {
             val text = doc.getText(0, doc.length)

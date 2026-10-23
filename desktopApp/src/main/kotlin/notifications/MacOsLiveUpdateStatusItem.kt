@@ -30,7 +30,6 @@ internal fun MacOsLiveUpdateStatusItem(
 }
 
 internal object MacOsLiveUpdateStatusItemBridge {
-    private const val libraryName = "libCrossSyncNotificationBridge.dylib"
     private var currentState: StatusItemState? = null
     private var currentAction: (() -> Unit)? = null
     // JNA callbacks must remain strongly reachable while AppKit observes the popup.
@@ -47,7 +46,7 @@ internal object MacOsLiveUpdateStatusItemBridge {
     private val library: MacOsLiveUpdateStatusNativeLibrary? by lazy {
         if (!MacOsPopupBridge.isSupported) return@lazy null
 
-        val file = nativeLibraryFile() ?: run {
+        val file = macOsNotificationBridgeFile() ?: run {
             println("CrossSync: live update status bridge was not found")
             return@lazy null
         }
@@ -57,23 +56,6 @@ internal object MacOsLiveUpdateStatusItemBridge {
         }.onFailure { error ->
             println("CrossSync: failed to load native live update status bridge: ${error.message}")
         }.getOrNull()
-    }
-
-    private fun nativeLibraryFile(): File? {
-        val configuredResourcesDirectory = System.getProperty("compose.application.resources.dir")
-            ?.let(::File)
-            ?.resolve(libraryName)
-
-        val developmentCandidates = listOf(
-            File("desktopApp/build/compose/tmp/prepareAppResources/$libraryName"),
-            File("desktopApp/build/generated/macos-notification-bridge/$libraryName"),
-            File("desktopApp/build/generated/macos-notification-bridge/macos/$libraryName"),
-            File("build/compose/tmp/prepareAppResources/$libraryName"),
-            File("build/generated/macos-notification-bridge/$libraryName"),
-            File("build/generated/macos-notification-bridge/macos/$libraryName"),
-        )
-
-        return selectMacOsNotificationBridge(configuredResourcesDirectory, developmentCandidates)
     }
 
     fun update(title: String?, iconBase64: String?, onClick: (() -> Unit)?) {
@@ -120,6 +102,24 @@ internal object MacOsLiveUpdateStatusItemBridge {
             println("CrossSync: failed to observe live update popup: ${error.message}")
         }
     }
+}
+
+internal fun macOsNotificationBridgeFile(): File? {
+    val libraryName = "libCrossSyncNotificationBridge.dylib"
+    val configuredResourcesDirectory = System.getProperty("compose.application.resources.dir")
+        ?.let(::File)
+        ?.resolve(libraryName)
+
+    val developmentCandidates = listOf(
+        File("desktopApp/build/compose/tmp/prepareAppResources/$libraryName"),
+        File("desktopApp/build/generated/macos-notification-bridge/$libraryName"),
+        File("desktopApp/build/generated/macos-notification-bridge/macos/$libraryName"),
+        File("build/compose/tmp/prepareAppResources/$libraryName"),
+        File("build/generated/macos-notification-bridge/$libraryName"),
+        File("build/generated/macos-notification-bridge/macos/$libraryName"),
+    )
+
+    return selectMacOsNotificationBridge(configuredResourcesDirectory, developmentCandidates)
 }
 
 internal fun selectMacOsNotificationBridge(configured: File?, development: List<File>): File? {

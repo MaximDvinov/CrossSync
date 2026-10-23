@@ -12,4 +12,5 @@ interface NotificationRepository {
     suspend fun clear()
     suspend fun clearHistoryBefore(olderThanEpochMillis: Long)
     fun observeNotifications(): Flow<List<SyncedNotification>>
+    fun observeActiveNotifications(): Flow<List<SyncedNotification>>
 }

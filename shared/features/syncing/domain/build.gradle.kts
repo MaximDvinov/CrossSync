@@ -12,6 +12,7 @@ kotlin {
     }
 
     jvm()
+    macosArm64()
 
     sourceSets {
         jvmTest.dependencies { implementation(kotlin("test")) }
